@@ -12,8 +12,7 @@ import {
   Video, 
   Save,
   Clock,
-  RotateCw,
-  Zap
+  RotateCw
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { NavigationBar } from '@/components/layout/NavigationBar';
@@ -25,6 +24,16 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Campaign, MediaItem } from '@/types/campaign';
 import { toast } from '@/hooks/use-toast';
+
+const DAYS = [
+  { value: 0, label: 'Sun' },
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
+];
 
 export default function CampaignEditor() {
   const navigate = useNavigate();
@@ -44,6 +53,7 @@ export default function CampaignEditor() {
       schedule: {
         startTime: '09:00',
         endTime: '18:00',
+        days: [1, 2, 3, 4, 5], // Mon-Fri by default
         enabled: false,
       },
       loop: true,
@@ -137,6 +147,20 @@ export default function CampaignEditor() {
       updatedAt: new Date(),
     }));
     setDeleteItemDialog({ open: false, itemId: null });
+    setUnsavedChanges(true);
+  };
+
+  const toggleDay = (day: number) => {
+    setCampaign((prev) => {
+      const currentDays = prev.schedule.days || [];
+      const newDays = currentDays.includes(day)
+        ? currentDays.filter((d) => d !== day)
+        : [...currentDays, day].sort((a, b) => a - b);
+      return {
+        ...prev,
+        schedule: { ...prev.schedule, days: newDays },
+      };
+    });
     setUnsavedChanges(true);
   };
 
@@ -357,6 +381,24 @@ export default function CampaignEditor() {
                   </div>
                   {campaign.schedule.enabled && (
                     <>
+                      <div>
+                        <Label className="mb-2 block">Days of Week</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {DAYS.map((day) => (
+                            <button
+                              key={day.value}
+                              onClick={() => toggleDay(day.value)}
+                              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors tv-focus ${
+                                (campaign.schedule.days || []).includes(day.value)
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                              }`}
+                            >
+                              {day.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div>
                         <Label className="mb-2 block">Start Time</Label>
                         <Input

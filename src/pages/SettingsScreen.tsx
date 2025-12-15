@@ -8,8 +8,6 @@ import {
   Lock, 
   Sun, 
   Moon,
-  RotateCw,
-  Zap,
   Shield
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
@@ -183,9 +181,9 @@ export default function SettingsScreen() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="mb-2 block">Duration: {pendingSettings.animationDuration}ms</Label>
+                  <Label className="mb-2 block">Transition Duration (ms)</Label>
                   <Input
-                    type="range"
+                    type="number"
                     min="100"
                     max="2000"
                     step="100"
@@ -193,10 +191,10 @@ export default function SettingsScreen() {
                     onChange={(e) =>
                       setPendingSettings((prev) => ({
                         ...prev,
-                        animationDuration: parseInt(e.target.value),
+                        animationDuration: Math.max(100, Math.min(2000, parseInt(e.target.value) || 100)),
                       }))
                     }
-                    className="h-3 tv-focus"
+                    className="h-12 bg-secondary border-border tv-focus"
                   />
                 </div>
               </TVCardContent>
@@ -216,11 +214,9 @@ export default function SettingsScreen() {
               </TVCardTitle>
               <TVCardContent className="space-y-4">
                 <div>
-                  <Label className="mb-2 block">
-                    Default Image Duration: {pendingSettings.defaultImageDuration}s
-                  </Label>
+                  <Label className="mb-2 block">Default Image Duration (seconds)</Label>
                   <Input
-                    type="range"
+                    type="number"
                     min="3"
                     max="60"
                     step="1"
@@ -228,10 +224,10 @@ export default function SettingsScreen() {
                     onChange={(e) =>
                       setPendingSettings((prev) => ({
                         ...prev,
-                        defaultImageDuration: parseInt(e.target.value),
+                        defaultImageDuration: Math.max(3, Math.min(60, parseInt(e.target.value) || 10)),
                       }))
                     }
-                    className="h-3 tv-focus"
+                    className="h-12 bg-secondary border-border tv-focus"
                   />
                 </div>
                 <div className="flex items-center justify-between">
