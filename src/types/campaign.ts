@@ -10,6 +10,7 @@ export interface MediaItem {
 export interface CampaignSchedule {
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
+  days: number[]; // 0 = Sunday, 1 = Monday, ... 6 = Saturday
   enabled: boolean;
 }
 

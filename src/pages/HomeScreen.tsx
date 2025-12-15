@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Play, Settings, Info, Eye, Trash2, Film, Clock } from 'lucide-react';
+import { Plus, Play, Settings, Info, Eye, Trash2, Copy, Film, Clock, Youtube } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
 import { NavigationBar } from '@/components/layout/NavigationBar';
 import { DateTimeDisplay } from '@/components/layout/DateTimeDisplay';
@@ -9,6 +10,8 @@ import { TVButton } from '@/components/ui/tv-button';
 import { TVCard, TVCardTitle, TVCardDescription, TVCardContent } from '@/components/ui/tv-card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Campaign } from '@/types/campaign';
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function HomeScreen() {
   const navigate = useNavigate();
@@ -23,6 +26,12 @@ export default function HomeScreen() {
     
     const now = currentTime;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentDay = now.getDay();
+    
+    // Check if current day is in schedule
+    if (campaign.schedule.days && campaign.schedule.days.length > 0) {
+      if (!campaign.schedule.days.includes(currentDay)) return false;
+    }
     
     const [startH, startM] = campaign.schedule.startTime.split(':').map(Number);
     const [endH, endM] = campaign.schedule.endTime.split(':').map(Number);
@@ -35,20 +44,57 @@ export default function HomeScreen() {
 
   const getCountdown = (campaign: Campaign) => {
     if (!campaign.schedule.enabled) return null;
+    if (isCampaignActive(campaign)) return null;
     
     const now = currentTime;
+    const currentDay = now.getDay();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     
     const [startH, startM] = campaign.schedule.startTime.split(':').map(Number);
     const startMinutes = startH * 60 + startM;
     
-    if (currentMinutes >= startMinutes) return null;
+    const scheduledDays = campaign.schedule.days && campaign.schedule.days.length > 0 
+      ? campaign.schedule.days 
+      : [0, 1, 2, 3, 4, 5, 6];
     
-    const diff = startMinutes - currentMinutes;
-    const hours = Math.floor(diff / 60);
-    const minutes = diff % 60;
+    // Find next scheduled day
+    let daysUntilNext = 0;
+    let nextDay = currentDay;
     
-    return `${hours}h ${minutes}m`;
+    for (let i = 0; i <= 7; i++) {
+      const checkDay = (currentDay + i) % 7;
+      if (scheduledDays.includes(checkDay)) {
+        if (i === 0 && currentMinutes < startMinutes) {
+          // Today, but start time hasn't passed
+          daysUntilNext = 0;
+          nextDay = checkDay;
+          break;
+        } else if (i > 0) {
+          daysUntilNext = i;
+          nextDay = checkDay;
+          break;
+        }
+      }
+    }
+    
+    // Calculate total minutes until start
+    let totalMinutesUntilStart = daysUntilNext * 24 * 60 + (startMinutes - currentMinutes);
+    if (daysUntilNext > 0) {
+      totalMinutesUntilStart = daysUntilNext * 24 * 60 - currentMinutes + startMinutes;
+    }
+    
+    if (totalMinutesUntilStart <= 0) return null;
+    
+    const days = Math.floor(totalMinutesUntilStart / (24 * 60));
+    const hours = Math.floor((totalMinutesUntilStart % (24 * 60)) / 60);
+    const minutes = totalMinutesUntilStart % 60;
+    
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   };
 
   const handleDeleteCampaign = () => {
@@ -56,6 +102,23 @@ export default function HomeScreen() {
       setCampaigns(campaigns.filter((c) => c.id !== deleteDialog.campaign!.id));
       setDeleteDialog({ open: false, campaign: null });
     }
+  };
+
+  const handleDuplicateCampaign = (campaign: Campaign, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const duplicatedCampaign: Campaign = {
+      ...campaign,
+      id: uuidv4(),
+      name: `${campaign.name} (copy)`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setCampaigns([...campaigns, duplicatedCampaign]);
+  };
+
+  const openYouTube = () => {
+    // Try to open YouTube app on Android TV, fallback to web
+    window.open('https://www.youtube.com', '_blank');
   };
 
   return (
@@ -106,6 +169,14 @@ export default function HomeScreen() {
           >
             <Play className="h-5 w-5" />
             Play Campaigns
+          </TVButton>
+          <TVButton
+            variant="outline"
+            size="lg"
+            onClick={openYouTube}
+          >
+            <Youtube className="h-5 w-5" />
+            YouTube
           </TVButton>
           <TVButton
             variant="ghost"
@@ -165,8 +236,8 @@ export default function HomeScreen() {
                     {/* Status badges */}
                     <div className="absolute top-4 right-4 flex gap-2">
                       {isActive && (
-                        <span className="flex items-center gap-1 rounded-full bg-success/20 px-3 py-1 text-xs font-medium text-success">
-                          <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+                        <span className="flex items-center gap-1.5 rounded-full bg-success px-3 py-1 text-xs font-bold text-success-foreground shadow-lg shadow-success/30">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-success-foreground" />
                           LIVE
                         </span>
                       )}
@@ -184,11 +255,18 @@ export default function HomeScreen() {
                     </TVCardDescription>
 
                     <TVCardContent>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         {campaign.schedule.enabled && (
-                          <span>
-                            {campaign.schedule.startTime} - {campaign.schedule.endTime}
-                          </span>
+                          <>
+                            <span>
+                              {campaign.schedule.startTime} - {campaign.schedule.endTime}
+                            </span>
+                            {campaign.schedule.days && campaign.schedule.days.length > 0 && campaign.schedule.days.length < 7 && (
+                              <span className="text-xs">
+                                ({campaign.schedule.days.map(d => DAY_NAMES[d]).join(', ')})
+                              </span>
+                            )}
+                          </>
                         )}
                         {campaign.loop && (
                           <span className="rounded bg-secondary px-2 py-0.5 text-xs">
@@ -215,6 +293,14 @@ export default function HomeScreen() {
                       >
                         <Eye className="h-4 w-4" />
                         Preview
+                      </TVButton>
+                      <TVButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleDuplicateCampaign(campaign, e)}
+                      >
+                        <Copy className="h-4 w-4" />
+                        Duplicate
                       </TVButton>
                       <TVButton
                         variant="ghost"

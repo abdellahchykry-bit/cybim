@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -10,6 +10,9 @@ export default function PreviewScreen() {
   
   const campaign = campaigns.find((c) => c.id === id);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimeoutRef = useRef<NodeJS.Timeout>();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!campaign || campaign.mediaItems.length === 0) {
@@ -28,6 +31,33 @@ export default function PreviewScreen() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // Handle tap to exit (3 taps)
+  const handleScreenTap = () => {
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+    
+    const newTapCount = tapCount + 1;
+    setTapCount(newTapCount);
+    
+    if (newTapCount >= 3) {
+      navigate(-1);
+      return;
+    }
+    
+    tapTimeoutRef.current = setTimeout(() => {
+      setTapCount(0);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!campaign) return;
@@ -64,6 +94,19 @@ export default function PreviewScreen() {
       return next;
     });
   };
+
+  // Auto-play video when it changes
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {
+        // Autoplay might be blocked, try muted
+        if (videoRef.current) {
+          videoRef.current.muted = true;
+          videoRef.current.play();
+        }
+      });
+    }
+  }, [currentIndex]);
 
   if (!campaign || campaign.mediaItems.length === 0) {
     return null;
@@ -103,7 +146,10 @@ export default function PreviewScreen() {
   const variants = getAnimationVariants();
 
   return (
-    <div className="fixed inset-0 bg-background cursor-none">
+    <div 
+      className="fixed inset-0 bg-background cursor-none"
+      onClick={handleScreenTap}
+    >
       <AnimatePresence mode="wait">
         <motion.div
           key={currentItem.id}
@@ -122,8 +168,12 @@ export default function PreviewScreen() {
             />
           ) : (
             <video
+              ref={videoRef}
+              key={currentItem.url}
               src={currentItem.url}
               autoPlay
+              playsInline
+              muted
               onEnded={handleVideoEnded}
               className="h-full w-full object-contain"
             />

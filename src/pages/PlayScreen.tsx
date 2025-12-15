@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { Campaign, MediaItem } from '@/types/campaign';
 
 export default function PlayScreen() {
   const navigate = useNavigate();
@@ -10,15 +9,24 @@ export default function PlayScreen() {
   
   const [currentCampaignIndex, setCurrentCampaignIndex] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimeoutRef = useRef<NodeJS.Timeout>();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Get active campaigns based on schedule
   const activeCampaigns = useMemo(() => {
     const now = currentTime;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentDay = now.getDay();
 
     return campaigns.filter((campaign) => {
       if (campaign.mediaItems.length === 0) return false;
       if (!campaign.schedule.enabled) return true;
+
+      // Check if current day is in schedule
+      if (campaign.schedule.days && campaign.schedule.days.length > 0) {
+        if (!campaign.schedule.days.includes(currentDay)) return false;
+      }
 
       const [startH, startM] = campaign.schedule.startTime.split(':').map(Number);
       const [endH, endM] = campaign.schedule.endTime.split(':').map(Number);
@@ -32,7 +40,6 @@ export default function PlayScreen() {
 
   useEffect(() => {
     if (activeCampaigns.length === 0) {
-      // No active campaigns, go back
       navigate('/home');
     }
   }, [activeCampaigns, navigate]);
@@ -48,6 +55,33 @@ export default function PlayScreen() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // Handle tap to exit (3 taps)
+  const handleScreenTap = () => {
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+    
+    const newTapCount = tapCount + 1;
+    setTapCount(newTapCount);
+    
+    if (newTapCount >= 3) {
+      navigate('/home');
+      return;
+    }
+    
+    tapTimeoutRef.current = setTimeout(() => {
+      setTapCount(0);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const currentCampaign = activeCampaigns[currentCampaignIndex];
   const currentItem = currentCampaign?.mediaItems[currentMediaIndex];
 
@@ -57,15 +91,11 @@ export default function PlayScreen() {
     const nextMediaIndex = currentMediaIndex + 1;
 
     if (nextMediaIndex >= currentCampaign.mediaItems.length) {
-      // End of current campaign
       if (currentCampaign.loop && activeCampaigns.length === 1) {
-        // Loop single campaign
         setCurrentMediaIndex(0);
       } else {
-        // Move to next campaign
         const nextCampaignIndex = currentCampaignIndex + 1;
         if (nextCampaignIndex >= activeCampaigns.length) {
-          // All campaigns played, loop back to first
           setCurrentCampaignIndex(0);
           setCurrentMediaIndex(0);
         } else {
@@ -87,6 +117,18 @@ export default function PlayScreen() {
       return () => clearTimeout(timer);
     }
   }, [currentItem, settings.defaultImageDuration, advanceToNext]);
+
+  // Auto-play video when it changes
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {
+        if (videoRef.current) {
+          videoRef.current.muted = true;
+          videoRef.current.play();
+        }
+      });
+    }
+  }, [currentMediaIndex, currentCampaignIndex]);
 
   const handleVideoEnded = () => {
     advanceToNext();
@@ -128,7 +170,10 @@ export default function PlayScreen() {
   const variants = getAnimationVariants();
 
   return (
-    <div className="fixed inset-0 bg-background cursor-none">
+    <div 
+      className="fixed inset-0 bg-background cursor-none"
+      onClick={handleScreenTap}
+    >
       <AnimatePresence mode="wait">
         <motion.div
           key={`${currentCampaign.id}-${currentItem.id}`}
@@ -147,8 +192,12 @@ export default function PlayScreen() {
             />
           ) : (
             <video
+              ref={videoRef}
+              key={currentItem.url}
               src={currentItem.url}
               autoPlay
+              playsInline
+              muted
               onEnded={handleVideoEnded}
               className="h-full w-full object-contain"
             />
