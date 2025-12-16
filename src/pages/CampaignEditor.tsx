@@ -76,35 +76,45 @@ export default function CampaignEditor() {
     }
   }, [isNew, existingCampaign, navigate]);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
-    const newItems: MediaItem[] = [];
+    const filePromises = Array.from(files).map((file) => {
+      return new Promise<MediaItem | null>((resolve) => {
+        const isVideo = file.type.startsWith('video/');
+        const isImage = file.type.startsWith('image/');
 
-    Array.from(files).forEach((file) => {
-      const isVideo = file.type.startsWith('video/');
-      const isImage = file.type.startsWith('image/');
+        if (!isVideo && !isImage) {
+          resolve(null);
+          return;
+        }
 
-      if (!isVideo && !isImage) return;
-
-      const url = URL.createObjectURL(file);
-      newItems.push({
-        id: uuidv4(),
-        name: file.name,
-        type: isVideo ? 'video' : 'image',
-        url,
-        duration: isImage ? settings.defaultImageDuration : undefined,
-        file,
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve({
+            id: uuidv4(),
+            name: file.name,
+            type: isVideo ? 'video' : 'image',
+            url: reader.result as string,
+            duration: isImage ? settings.defaultImageDuration : undefined,
+          });
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
       });
     });
 
-    setCampaign((prev) => ({
-      ...prev,
-      mediaItems: [...prev.mediaItems, ...newItems],
-      updatedAt: new Date(),
-    }));
-    setUnsavedChanges(true);
+    const newItems = (await Promise.all(filePromises)).filter((item): item is MediaItem => item !== null);
+
+    if (newItems.length > 0) {
+      setCampaign((prev) => ({
+        ...prev,
+        mediaItems: [...prev.mediaItems, ...newItems],
+        updatedAt: new Date(),
+      }));
+      setUnsavedChanges(true);
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';

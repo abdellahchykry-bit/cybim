@@ -2,9 +2,8 @@ export interface MediaItem {
   id: string;
   name: string;
   type: 'image' | 'video';
-  url: string;
+  url: string; // base64 data URL for persistence
   duration?: number; // in seconds, for images
-  file?: File;
 }
 
 export interface CampaignSchedule {
