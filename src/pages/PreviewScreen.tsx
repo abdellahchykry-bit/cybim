@@ -95,18 +95,22 @@ export default function PreviewScreen() {
     });
   };
 
-  // Auto-play video when it changes
-  useEffect(() => {
+  const handleVideoCanPlay = () => {
     if (videoRef.current) {
-      videoRef.current.play().catch(() => {
-        // Autoplay might be blocked, try muted
+      videoRef.current.play().then(() => {
+        // Try to unmute after play starts
+        if (videoRef.current) {
+          videoRef.current.muted = false;
+        }
+      }).catch(() => {
+        // Autoplay blocked, keep muted and play
         if (videoRef.current) {
           videoRef.current.muted = true;
-          videoRef.current.play();
+          videoRef.current.play().catch(console.error);
         }
       });
     }
-  }, [currentIndex]);
+  };
 
   if (!campaign || campaign.mediaItems.length === 0) {
     return null;
@@ -147,7 +151,7 @@ export default function PreviewScreen() {
 
   return (
     <div 
-      className="fixed inset-0 bg-background cursor-none"
+      className="fixed inset-0 bg-black cursor-none"
       onClick={handleScreenTap}
     >
       <AnimatePresence mode="wait">
@@ -171,9 +175,12 @@ export default function PreviewScreen() {
               ref={videoRef}
               key={currentItem.url}
               src={currentItem.url}
+              muted
               autoPlay
               playsInline
+              onCanPlay={handleVideoCanPlay}
               onEnded={handleVideoEnded}
+              onError={(e) => console.error('Video error:', e)}
               className="h-full w-full object-contain"
             />
           )}
