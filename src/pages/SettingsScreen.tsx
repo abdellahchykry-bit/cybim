@@ -21,6 +21,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 
+const IMAGE_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30, 60];
+const TRANSITION_DURATION_OPTIONS = [300, 500, 700, 1000, 1500, 2000];
+
 export default function SettingsScreen() {
   const { settings, setSettings } = useApp();
   const [pendingSettings, setPendingSettings] = useState(settings);
@@ -181,21 +184,21 @@ export default function SettingsScreen() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="mb-2 block">Transition Duration (ms)</Label>
-                  <Input
-                    type="number"
-                    min="100"
-                    max="2000"
-                    step="100"
-                    value={pendingSettings.animationDuration}
-                    onChange={(e) =>
-                      setPendingSettings((prev) => ({
-                        ...prev,
-                        animationDuration: Math.max(100, Math.min(2000, parseInt(e.target.value) || 100)),
-                      }))
-                    }
-                    className="h-12 bg-secondary border-border tv-focus"
-                  />
+                  <Label className="mb-2 block">Transition Duration</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {TRANSITION_DURATION_OPTIONS.map((duration) => (
+                      <TVButton
+                        key={duration}
+                        variant={pendingSettings.animationDuration === duration ? 'default' : 'secondary'}
+                        size="sm"
+                        onClick={() =>
+                          setPendingSettings((prev) => ({ ...prev, animationDuration: duration }))
+                        }
+                      >
+                        {duration >= 1000 ? `${duration / 1000}s` : `${duration}ms`}
+                      </TVButton>
+                    ))}
+                  </div>
                 </div>
               </TVCardContent>
             </TVCard>
@@ -214,21 +217,21 @@ export default function SettingsScreen() {
               </TVCardTitle>
               <TVCardContent className="space-y-4">
                 <div>
-                  <Label className="mb-2 block">Default Image Duration (seconds)</Label>
-                  <Input
-                    type="number"
-                    min="3"
-                    max="60"
-                    step="1"
-                    value={pendingSettings.defaultImageDuration}
-                    onChange={(e) =>
-                      setPendingSettings((prev) => ({
-                        ...prev,
-                        defaultImageDuration: Math.max(3, Math.min(60, parseInt(e.target.value) || 10)),
-                      }))
-                    }
-                    className="h-12 bg-secondary border-border tv-focus"
-                  />
+                  <Label className="mb-2 block">Default Image Duration</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {IMAGE_DURATION_OPTIONS.map((duration) => (
+                      <TVButton
+                        key={duration}
+                        variant={pendingSettings.defaultImageDuration === duration ? 'default' : 'secondary'}
+                        size="sm"
+                        onClick={() =>
+                          setPendingSettings((prev) => ({ ...prev, defaultImageDuration: duration }))
+                        }
+                      >
+                        {duration}s
+                      </TVButton>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
