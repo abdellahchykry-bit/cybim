@@ -55,7 +55,7 @@ export default function PlayScreen() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Handle tap to exit (3 taps)
+  // Handle tap to exit (2 taps)
   const handleScreenTap = () => {
     if (tapTimeoutRef.current) {
       clearTimeout(tapTimeoutRef.current);
@@ -64,7 +64,7 @@ export default function PlayScreen() {
     const newTapCount = tapCount + 1;
     setTapCount(newTapCount);
     
-    if (newTapCount >= 3) {
+    if (newTapCount >= 2) {
       navigate('/home');
       return;
     }
@@ -197,7 +197,6 @@ export default function PlayScreen() {
               src={currentItem.url}
               autoPlay
               playsInline
-              muted
               onEnded={handleVideoEnded}
               className="h-full w-full object-contain"
             />

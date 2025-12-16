@@ -1,4 +1,4 @@
-import { ArrowLeft, Home } from 'lucide-react';
+import { ArrowLeft, Home, Settings, Info } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TVButton } from '@/components/ui/tv-button';
 import { CybimLogo } from '@/components/icons/CybimLogo';
@@ -27,7 +27,23 @@ export function NavigationBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
+        <TVButton
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/settings')}
+          aria-label="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </TVButton>
+        <TVButton
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/about')}
+          aria-label="About"
+        >
+          <Info className="h-5 w-5" />
+        </TVButton>
         {!isHome && (
           <TVButton
             variant="ghost"

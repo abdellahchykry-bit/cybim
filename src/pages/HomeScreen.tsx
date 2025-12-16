@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Play, Settings, Info, Eye, Trash2, Copy, Film, Clock, Youtube } from 'lucide-react';
+import { Plus, Play, Eye, Trash2, Copy, Film, Clock, Youtube } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
 import { NavigationBar } from '@/components/layout/NavigationBar';
@@ -22,7 +22,10 @@ export default function HomeScreen() {
   });
 
   const isCampaignActive = (campaign: Campaign) => {
-    if (!campaign.schedule.enabled) return false;
+    if (campaign.mediaItems.length === 0) return false;
+    
+    // If schedule is not enabled, campaign is always active
+    if (!campaign.schedule.enabled) return true;
     
     const now = currentTime;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -44,6 +47,7 @@ export default function HomeScreen() {
 
   const getCountdown = (campaign: Campaign) => {
     if (!campaign.schedule.enabled) return null;
+    if (campaign.mediaItems.length === 0) return null;
     if (isCampaignActive(campaign)) return null;
     
     const now = currentTime;
@@ -135,7 +139,7 @@ export default function HomeScreen() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              Campaign Dashboard
+              Dashboard
             </motion.h1>
             <motion.p
               className="mt-2 text-muted-foreground"
@@ -171,28 +175,12 @@ export default function HomeScreen() {
             Play Campaigns
           </TVButton>
           <TVButton
-            variant="outline"
             size="lg"
             onClick={openYouTube}
+            className="bg-[#FF0000] hover:bg-[#CC0000] text-white border-none"
           >
             <Youtube className="h-5 w-5" />
             YouTube
-          </TVButton>
-          <TVButton
-            variant="ghost"
-            size="lg"
-            onClick={() => navigate('/settings')}
-          >
-            <Settings className="h-5 w-5" />
-            Settings
-          </TVButton>
-          <TVButton
-            variant="ghost"
-            size="lg"
-            onClick={() => navigate('/about')}
-          >
-            <Info className="h-5 w-5" />
-            About
           </TVButton>
         </motion.div>
 
