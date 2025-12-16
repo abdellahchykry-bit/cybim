@@ -118,17 +118,22 @@ export default function PlayScreen() {
     }
   }, [currentItem, settings.defaultImageDuration, advanceToNext]);
 
-  // Auto-play video when it changes
-  useEffect(() => {
+  const handleVideoCanPlay = () => {
     if (videoRef.current) {
-      videoRef.current.play().catch(() => {
+      videoRef.current.play().then(() => {
+        // Try to unmute after play starts
+        if (videoRef.current) {
+          videoRef.current.muted = false;
+        }
+      }).catch(() => {
+        // Autoplay blocked, keep muted and play
         if (videoRef.current) {
           videoRef.current.muted = true;
-          videoRef.current.play();
+          videoRef.current.play().catch(console.error);
         }
       });
     }
-  }, [currentMediaIndex, currentCampaignIndex]);
+  };
 
   const handleVideoEnded = () => {
     advanceToNext();
@@ -171,7 +176,7 @@ export default function PlayScreen() {
 
   return (
     <div 
-      className="fixed inset-0 bg-background cursor-none"
+      className="fixed inset-0 bg-black cursor-none"
       onClick={handleScreenTap}
     >
       <AnimatePresence mode="wait">
@@ -195,9 +200,12 @@ export default function PlayScreen() {
               ref={videoRef}
               key={currentItem.url}
               src={currentItem.url}
+              muted
               autoPlay
               playsInline
+              onCanPlay={handleVideoCanPlay}
               onEnded={handleVideoEnded}
+              onError={(e) => console.error('Video error:', e)}
               className="h-full w-full object-contain"
             />
           )}
