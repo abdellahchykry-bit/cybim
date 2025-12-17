@@ -15,7 +15,19 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function HomeScreen() {
   const navigate = useNavigate();
-  const { campaigns, setCampaigns, currentTime } = useApp();
+  const { campaigns, setCampaigns, currentTime, isDataLoaded } = useApp();
+
+  // Show loading state while data loads
+  if (!isDataLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <p className="mt-4 text-muted-foreground">Loading campaigns...</p>
+        </div>
+      </div>
+    );
+  }
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; campaign: Campaign | null }>({
     open: false,
     campaign: null,
