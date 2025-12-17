@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
+import {
   Monitor, 
   Sparkles, 
   PlayCircle, 
@@ -22,9 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 
 const IMAGE_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30, 60];
-const TRANSITION_DURATION_OPTIONS = [1, 300, 500, 700, 1000, 1500, 2000];
+const TRANSITION_DURATION_OPTIONS = [100, 300, 500, 700, 1000, 1500, 2000];
 
 export default function SettingsScreen() {
+  const navigate = useNavigate();
   const { settings, setSettings } = useApp();
   const [pendingSettings, setPendingSettings] = useState(settings);
   const [pinDialog, setPinDialog] = useState<{ open: boolean; action: 'enable' | 'disable' | 'change' }>({
@@ -39,6 +41,7 @@ export default function SettingsScreen() {
       title: 'Settings saved',
       description: 'Your settings have been updated successfully.',
     });
+    navigate('/home');
   };
 
   const handlePinAction = () => {

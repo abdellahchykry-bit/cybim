@@ -160,7 +160,7 @@ export default function PreviewScreen() {
       className="fixed inset-0 bg-black cursor-none"
       onClick={handleScreenTap}
     >
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         <motion.div
           key={currentItem.id}
           className="absolute inset-0 flex items-center justify-center"
@@ -168,7 +168,7 @@ export default function PreviewScreen() {
           initial="initial"
           animate="animate"
           exit="exit"
-          transition={{ duration: settings.animationDuration / 1000 }}
+          transition={{ duration: currentItem.type === 'video' ? 0.1 : settings.animationDuration / 1000 }}
         >
           {currentItem.type === 'image' ? (
             <img
