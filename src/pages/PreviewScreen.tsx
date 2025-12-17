@@ -84,6 +84,12 @@ export default function PreviewScreen() {
 
   const handleVideoEnded = () => {
     if (!campaign) return;
+    
+    // If single video with loop, video element handles looping via loop attribute
+    if (campaign.mediaItems.length === 1 && campaign.loop) {
+      return;
+    }
+    
     setCurrentIndex((prev) => {
       const next = prev + 1;
       if (next >= campaign.mediaItems.length) {
@@ -178,6 +184,7 @@ export default function PreviewScreen() {
               muted
               autoPlay
               playsInline
+              loop={campaign.loop && campaign.mediaItems.length === 1}
               onCanPlay={handleVideoCanPlay}
               onEnded={handleVideoEnded}
               onError={(e) => console.error('Video error:', e)}

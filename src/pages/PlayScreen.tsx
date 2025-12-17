@@ -136,6 +136,13 @@ export default function PlayScreen() {
   };
 
   const handleVideoEnded = () => {
+    if (!currentCampaign) return;
+    
+    // If single video with loop, video element handles looping via loop attribute
+    if (currentCampaign.mediaItems.length === 1 && currentCampaign.loop) {
+      return;
+    }
+    
     advanceToNext();
   };
 
@@ -203,6 +210,7 @@ export default function PlayScreen() {
               muted
               autoPlay
               playsInline
+              loop={currentCampaign.loop && currentCampaign.mediaItems.length === 1}
               onCanPlay={handleVideoCanPlay}
               onEnded={handleVideoEnded}
               onError={(e) => console.error('Video error:', e)}
