@@ -1,17 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CybimLogo } from '@/components/icons/CybimLogo';
+import { useApp } from '@/contexts/AppContext';
 
 export default function SplashScreen() {
   const navigate = useNavigate();
+  const { isDataLoaded } = useApp();
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
+  // Minimum display time for splash
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate('/home', { replace: true });
+      setMinTimeElapsed(true);
     }, 2500);
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, []);
+
+  // Navigate only when both data is loaded AND minimum time has passed
+  useEffect(() => {
+    if (isDataLoaded && minTimeElapsed) {
+      navigate('/home', { replace: true });
+    }
+  }, [isDataLoaded, minTimeElapsed, navigate]);
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-background overflow-hidden">
@@ -83,9 +94,20 @@ export default function SplashScreen() {
               duration: 1,
               delay: 1.3,
               ease: 'easeInOut',
+              repeat: isDataLoaded ? 0 : Infinity,
             }}
           />
         </motion.div>
+
+        {/* Loading text */}
+        <motion.p
+          className="mt-4 text-sm text-muted-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 1.5 }}
+        >
+          {isDataLoaded ? 'Ready' : 'Loading data...'}
+        </motion.p>
       </motion.div>
     </div>
   );

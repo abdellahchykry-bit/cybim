@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect } from 'react';
 import { Campaign, AppSettings, defaultSettings } from '@/types/campaign';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useCampaignsDB, useSettingsDB } from '@/hooks/useIndexedDB';
 
 interface AppContextType {
   campaigns: Campaign[];
@@ -8,14 +8,17 @@ interface AppContextType {
   settings: AppSettings;
   setSettings: (settings: AppSettings | ((prev: AppSettings) => AppSettings)) => void;
   currentTime: Date;
+  isDataLoaded: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [campaigns, setCampaigns] = useLocalStorage<Campaign[]>('cybim-campaigns', []);
-  const [settings, setSettings] = useLocalStorage<AppSettings>('cybim-settings', defaultSettings);
+  const [campaigns, setCampaigns, campaignsLoaded] = useCampaignsDB<Campaign>([]);
+  const [settings, setSettings, settingsLoaded] = useSettingsDB<AppSettings>(defaultSettings);
   const [currentTime, setCurrentTime] = React.useState(new Date());
+
+  const isDataLoaded = campaignsLoaded && settingsLoaded;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -32,7 +35,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [settings.theme]);
 
   return (
-    <AppContext.Provider value={{ campaigns, setCampaigns, settings, setSettings, currentTime }}>
+    <AppContext.Provider value={{ campaigns, setCampaigns, settings, setSettings, currentTime, isDataLoaded }}>
       {children}
     </AppContext.Provider>
   );
