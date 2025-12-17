@@ -64,7 +64,6 @@ export default function CampaignEditor() {
   });
 
   const [unsavedChanges, setUnsavedChanges] = useState(false);
-  const [confirmSaveDialog, setConfirmSaveDialog] = useState(false);
   const [deleteItemDialog, setDeleteItemDialog] = useState<{ open: boolean; itemId: string | null }>({
     open: false,
     itemId: null,
@@ -493,7 +492,7 @@ export default function CampaignEditor() {
               <TVButton
                 size="xl"
                 className="w-full"
-                onClick={() => setConfirmSaveDialog(true)}
+                onClick={handleSave}
               >
                 <Save className="h-5 w-5" />
                 {isNew ? 'Create Campaign' : 'Save Changes'}
@@ -507,19 +506,6 @@ export default function CampaignEditor() {
           </div>
         </div>
       </main>
-
-      {/* Confirm Save Dialog */}
-      <ConfirmDialog
-        open={confirmSaveDialog}
-        onOpenChange={setConfirmSaveDialog}
-        title={isNew ? 'Create Campaign' : 'Save Changes'}
-        description={isNew 
-          ? 'Are you sure you want to create this campaign?'
-          : 'Are you sure you want to save these changes?'
-        }
-        confirmText={isNew ? 'Create' : 'Save'}
-        onConfirm={handleSave}
-      />
 
       {/* Delete Item Dialog */}
       <ConfirmDialog

@@ -22,12 +22,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 
 const IMAGE_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30, 60];
-const TRANSITION_DURATION_OPTIONS = [300, 500, 700, 1000, 1500, 2000];
+const TRANSITION_DURATION_OPTIONS = [1, 300, 500, 700, 1000, 1500, 2000];
 
 export default function SettingsScreen() {
   const { settings, setSettings } = useApp();
   const [pendingSettings, setPendingSettings] = useState(settings);
-  const [confirmDialog, setConfirmDialog] = useState(false);
   const [pinDialog, setPinDialog] = useState<{ open: boolean; action: 'enable' | 'disable' | 'change' }>({
     open: false,
     action: 'enable',
@@ -36,7 +35,6 @@ export default function SettingsScreen() {
 
   const handleSaveSettings = () => {
     setSettings(pendingSettings);
-    setConfirmDialog(false);
     toast({
       title: 'Settings saved',
       description: 'Your settings have been updated successfully.',
@@ -348,12 +346,12 @@ export default function SettingsScreen() {
         >
           <TVButton
             size="xl"
-            onClick={() => setConfirmDialog(true)}
+            onClick={handleSaveSettings}
             disabled={!hasChanges}
             className="min-w-64"
           >
             <Shield className="h-5 w-5" />
-            Confirm Changes
+            Save Changes
           </TVButton>
         </motion.div>
         {hasChanges && (
@@ -362,16 +360,6 @@ export default function SettingsScreen() {
           </p>
         )}
       </main>
-
-      {/* Confirm Save Dialog */}
-      <ConfirmDialog
-        open={confirmDialog}
-        onOpenChange={setConfirmDialog}
-        title="Save Settings"
-        description="Are you sure you want to save these settings?"
-        confirmText="Save"
-        onConfirm={handleSaveSettings}
-      />
 
       {/* PIN Dialog */}
       <ConfirmDialog
