@@ -2,10 +2,14 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
+import { useOrientation } from '@/hooks/useOrientation';
 
 export default function PlayScreen() {
   const navigate = useNavigate();
   const { campaigns, settings, currentTime } = useApp();
+  
+  // Apply orientation lock during playback
+  useOrientation(settings.orientation);
   
   const [currentCampaignIndex, setCurrentCampaignIndex] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);

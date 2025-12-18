@@ -2,11 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
+import { useOrientation } from '@/hooks/useOrientation';
 
 export default function PreviewScreen() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { campaigns, settings } = useApp();
+  
+  // Apply orientation lock during preview
+  useOrientation(settings.orientation);
   
   const campaign = campaigns.find((c) => c.id === id);
   const [currentIndex, setCurrentIndex] = useState(0);
