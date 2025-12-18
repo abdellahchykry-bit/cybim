@@ -4,37 +4,50 @@ import { getAllCampaigns, saveCampaigns, getSettings, saveSettings } from '@/lib
 export function useCampaignsDB<T extends { id: string }>(initialValue: T[]): [T[], (value: T[] | ((prev: T[]) => T[])) => void, boolean] {
   const [campaigns, setCampaignsState] = useState<T[]>(initialValue);
   const [isLoaded, setIsLoaded] = useState(false);
-  const isInitialLoad = useRef(true);
+  const hasLoadedRef = useRef(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load campaigns from IndexedDB on mount
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    
     getAllCampaigns<T>()
       .then((stored) => {
-        if (stored.length > 0) {
+        hasLoadedRef.current = true;
+        if (stored && stored.length > 0) {
           setCampaignsState(stored);
         }
         setIsLoaded(true);
-        isInitialLoad.current = false;
       })
       .catch((error) => {
         console.error('Failed to load campaigns from IndexedDB:', error);
+        hasLoadedRef.current = true;
         setIsLoaded(true);
-        isInitialLoad.current = false;
       });
   }, []);
 
-  // Save campaigns to IndexedDB whenever they change (but not on initial load)
-  useEffect(() => {
-    if (!isInitialLoad.current && isLoaded) {
-      saveCampaigns(campaigns).catch((error) => {
+  // Save campaigns to IndexedDB with debounce
+  const saveCampaignsToDb = useCallback((data: T[]) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveCampaigns(data).catch((error) => {
         console.error('Failed to save campaigns to IndexedDB:', error);
       });
-    }
-  }, [campaigns, isLoaded]);
+    }, 100);
+  }, []);
 
   const setCampaigns = useCallback((value: T[] | ((prev: T[]) => T[])) => {
-    setCampaignsState(value);
-  }, []);
+    setCampaignsState((prev) => {
+      const newValue = typeof value === 'function' ? value(prev) : value;
+      // Only save if data has loaded and we have actual changes
+      if (hasLoadedRef.current) {
+        saveCampaignsToDb(newValue);
+      }
+      return newValue;
+    });
+  }, [saveCampaignsToDb]);
 
   return [campaigns, setCampaigns, isLoaded];
 }
@@ -42,35 +55,50 @@ export function useCampaignsDB<T extends { id: string }>(initialValue: T[]): [T[
 export function useSettingsDB<T>(initialValue: T): [T, (value: T | ((prev: T) => T)) => void, boolean] {
   const [settings, setSettingsState] = useState<T>(initialValue);
   const [isLoaded, setIsLoaded] = useState(false);
-  const isInitialLoad = useRef(true);
+  const hasLoadedRef = useRef(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load settings from IndexedDB on mount
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    
     getSettings<T>(initialValue)
       .then((stored) => {
+        hasLoadedRef.current = true;
         setSettingsState(stored);
         setIsLoaded(true);
-        isInitialLoad.current = false;
       })
       .catch((error) => {
         console.error('Failed to load settings from IndexedDB:', error);
+        hasLoadedRef.current = true;
         setIsLoaded(true);
-        isInitialLoad.current = false;
       });
-  }, []);
+  }, [initialValue]);
 
-  // Save settings to IndexedDB whenever they change (but not on initial load)
-  useEffect(() => {
-    if (!isInitialLoad.current && isLoaded) {
-      saveSettings(settings).catch((error) => {
+  // Save settings to IndexedDB with debounce
+  const saveSettingsToDb = useCallback((data: T) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveSettings(data).catch((error) => {
         console.error('Failed to save settings to IndexedDB:', error);
       });
-    }
-  }, [settings, isLoaded]);
+    }, 100);
+  }, []);
 
   const setSettings = useCallback((value: T | ((prev: T) => T)) => {
-    setSettingsState(value);
-  }, []);
+    setSettingsState((prev) => {
+      const newValue = typeof value === 'function' 
+        ? (value as (prev: T) => T)(prev) 
+        : value;
+      // Only save if data has loaded
+      if (hasLoadedRef.current) {
+        saveSettingsToDb(newValue);
+      }
+      return newValue;
+    });
+  }, [saveSettingsToDb]);
 
   return [settings, setSettings, isLoaded];
 }
