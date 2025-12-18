@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -9,7 +9,9 @@ import {
   Lock, 
   Sun, 
   Moon,
-  Shield
+  Shield,
+  RotateCcw,
+  RotateCw
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { NavigationBar } from '@/components/layout/NavigationBar';
@@ -19,11 +21,26 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
+import { useOrientation } from '@/hooks/useOrientation';
+import { AppSettings } from '@/types/campaign';
 
 const IMAGE_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30, 60];
 const TRANSITION_DURATION_OPTIONS = [100, 300, 500, 700, 1000, 1500, 2000];
+
+const ORIENTATION_OPTIONS: { value: AppSettings['orientation']; label: string; icon: 'landscape' | 'portrait' }[] = [
+  { value: 'landscape', label: 'Landscape', icon: 'landscape' },
+  { value: 'landscape-inverted', label: 'Landscape (Inverted)', icon: 'landscape' },
+  { value: 'portrait', label: 'Portrait', icon: 'portrait' },
+  { value: 'portrait-inverted', label: 'Portrait (Inverted)', icon: 'portrait' },
+];
+
+const ANIMATION_OPTIONS: { value: AppSettings['animation']; label: string }[] = [
+  { value: 'fade', label: 'Fade' },
+  { value: 'slide', label: 'Slide' },
+  { value: 'zoom', label: 'Zoom' },
+  { value: 'none', label: 'None' },
+];
 
 export default function SettingsScreen() {
   const navigate = useNavigate();
@@ -34,6 +51,9 @@ export default function SettingsScreen() {
     action: 'enable',
   });
   const [newPin, setNewPin] = useState('');
+
+  // Apply orientation lock when pendingSettings.orientation changes
+  useOrientation(pendingSettings.orientation);
 
   const handleSaveSettings = () => {
     setSettings(pendingSettings);
@@ -133,22 +153,25 @@ export default function SettingsScreen() {
                 Screen Orientation
               </TVCardTitle>
               <TVCardContent>
-                <Select
-                  value={pendingSettings.orientation}
-                  onValueChange={(value: typeof pendingSettings.orientation) =>
-                    setPendingSettings((prev) => ({ ...prev, orientation: value }))
-                  }
-                >
-                  <SelectTrigger className="h-12 bg-secondary border-border tv-focus">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    <SelectItem value="landscape">Landscape</SelectItem>
-                    <SelectItem value="landscape-inverted">Landscape (Inverted)</SelectItem>
-                    <SelectItem value="portrait">Portrait</SelectItem>
-                    <SelectItem value="portrait-inverted">Portrait (Inverted)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-1 gap-2">
+                  {ORIENTATION_OPTIONS.map((option) => (
+                    <TVButton
+                      key={option.value}
+                      variant={pendingSettings.orientation === option.value ? 'default' : 'secondary'}
+                      className="w-full justify-start"
+                      onClick={() =>
+                        setPendingSettings((prev) => ({ ...prev, orientation: option.value }))
+                      }
+                    >
+                      {option.icon === 'landscape' ? (
+                        <Monitor className="h-4 w-4 mr-2" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                      )}
+                      {option.label}
+                    </TVButton>
+                  ))}
+                </div>
               </TVCardContent>
             </TVCard>
           </motion.div>
@@ -167,22 +190,19 @@ export default function SettingsScreen() {
               <TVCardContent className="space-y-4">
                 <div>
                   <Label className="mb-2 block">Transition Effect</Label>
-                  <Select
-                    value={pendingSettings.animation}
-                    onValueChange={(value: typeof pendingSettings.animation) =>
-                      setPendingSettings((prev) => ({ ...prev, animation: value }))
-                    }
-                  >
-                    <SelectTrigger className="h-12 bg-secondary border-border tv-focus">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      <SelectItem value="fade">Fade</SelectItem>
-                      <SelectItem value="slide">Slide</SelectItem>
-                      <SelectItem value="zoom">Zoom</SelectItem>
-                      <SelectItem value="none">None</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ANIMATION_OPTIONS.map((option) => (
+                      <TVButton
+                        key={option.value}
+                        variant={pendingSettings.animation === option.value ? 'default' : 'secondary'}
+                        onClick={() =>
+                          setPendingSettings((prev) => ({ ...prev, animation: option.value }))
+                        }
+                      >
+                        {option.label}
+                      </TVButton>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <Label className="mb-2 block">Transition Duration</Label>

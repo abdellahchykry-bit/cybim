@@ -22,6 +22,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { TimeInput } from '@/components/ui/time-input';
 import { Campaign, MediaItem } from '@/types/campaign';
 import { toast } from '@/hooks/use-toast';
 
@@ -409,33 +410,34 @@ export default function CampaignEditor() {
                         </div>
                       </div>
                       <div>
-                        <Label className="mb-2 block">Start Time</Label>
-                        <Input
-                          type="time"
+                        <Label className="mb-2 block">Start Time (24h)</Label>
+                        <TimeInput
                           value={campaign.schedule.startTime}
-                          onChange={(e) => {
+                          onChange={(value) => {
                             setCampaign((prev) => ({
                               ...prev,
-                              schedule: { ...prev.schedule, startTime: e.target.value },
+                              schedule: { ...prev.schedule, startTime: value },
                             }));
                             setUnsavedChanges(true);
                           }}
-                          className="h-12 bg-secondary border-border tv-focus"
                         />
                       </div>
                       <div>
-                        <Label className="mb-2 block">End Time</Label>
-                        <Input
-                          type="time"
+                        <Label className="mb-2 block">End Time (24h)</Label>
+                        <TimeInput
                           value={campaign.schedule.endTime}
-                          onChange={(e) => {
+                          onChange={(value) => {
                             setCampaign((prev) => ({
                               ...prev,
-                              schedule: { ...prev.schedule, endTime: e.target.value },
+                              schedule: { ...prev.schedule, endTime: value },
                             }));
                             setUnsavedChanges(true);
                           }}
-                          className="h-12 bg-secondary border-border tv-focus"
+                          error={
+                            campaign.schedule.endTime < campaign.schedule.startTime
+                              ? 'End time must be after start time'
+                              : undefined
+                          }
                         />
                       </div>
                     </>
