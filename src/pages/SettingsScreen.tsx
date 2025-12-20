@@ -57,10 +57,7 @@ export default function SettingsScreen() {
 
   const handleSaveSettings = () => {
     setSettings(pendingSettings);
-    toast({
-      title: 'Settings saved',
-      description: 'Your settings have been updated successfully.',
-    });
+    // Removed toast notification - just navigate back
     navigate('/home');
   };
 
