@@ -5,7 +5,6 @@ export function useOrientation(orientation: AppSettings['orientation']) {
   useEffect(() => {
     const lockOrientation = async () => {
       try {
-        // Use Screen Orientation API if available
         const screenOrientation = screen.orientation;
         if (screenOrientation && typeof (screenOrientation as any).lock === 'function') {
           let lockType: string;
@@ -30,14 +29,12 @@ export function useOrientation(orientation: AppSettings['orientation']) {
           await (screenOrientation as any).lock(lockType);
         }
       } catch (error) {
-        // Orientation lock may fail if not in fullscreen or not supported
         console.warn('Orientation lock not supported or failed:', error);
       }
     };
 
     lockOrientation();
 
-    // Cleanup: unlock orientation when component unmounts
     return () => {
       try {
         const screenOrientation = screen.orientation;
@@ -51,16 +48,36 @@ export function useOrientation(orientation: AppSettings['orientation']) {
   }, [orientation]);
 }
 
-// Apply orientation via CSS transform as fallback
-export function getOrientationStyle(orientation: AppSettings['orientation']): React.CSSProperties {
+// CSS-based orientation that works in all environments including Lovable preview
+export function getOrientationStyle(orientation: AppSettings['orientation']): {
+  transform: string;
+  width: string;
+  height: string;
+} {
   switch (orientation) {
-    case 'landscape-inverted':
-      return { transform: 'rotate(180deg)' };
     case 'portrait':
-      return { transform: 'rotate(-90deg)', transformOrigin: 'center center' };
+      return {
+        transform: 'rotate(-90deg)',
+        width: '100vh',
+        height: '100vw',
+      };
     case 'portrait-inverted':
-      return { transform: 'rotate(90deg)', transformOrigin: 'center center' };
+      return {
+        transform: 'rotate(90deg)',
+        width: '100vh',
+        height: '100vw',
+      };
+    case 'landscape-inverted':
+      return {
+        transform: 'rotate(180deg)',
+        width: '100vw',
+        height: '100vh',
+      };
     default:
-      return {};
+      return {
+        transform: '',
+        width: '100vw',
+        height: '100vh',
+      };
   }
 }
