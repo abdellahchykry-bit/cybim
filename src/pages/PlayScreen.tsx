@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { getOrientationStyle } from '@/hooks/useOrientation';
 
 export default function PlayScreen() {
   const navigate = useNavigate();
@@ -11,9 +9,14 @@ export default function PlayScreen() {
   const [currentCampaignIndex, setCurrentCampaignIndex] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [tapCount, setTapCount] = useState(0);
+  const [activePlayer, setActivePlayer] = useState<'A' | 'B'>('A');
+  const [playerBReady, setPlayerBReady] = useState(false);
+  const [playerAReady, setPlayerAReady] = useState(false);
+  
   const tapTimeoutRef = useRef<NodeJS.Timeout>();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const nextVideoRef = useRef<HTMLVideoElement>(null);
+  const videoRefA = useRef<HTMLVideoElement>(null);
+  const videoRefB = useRef<HTMLVideoElement>(null);
+  const imageTimerRef = useRef<NodeJS.Timeout>();
 
   // Get active campaigns based on schedule
   const activeCampaigns = useMemo(() => {
@@ -25,7 +28,6 @@ export default function PlayScreen() {
       if (campaign.mediaItems.length === 0) return false;
       if (!campaign.schedule.enabled) return true;
 
-      // Check if current day is in schedule
       if (campaign.schedule.days && campaign.schedule.days.length > 0) {
         if (!campaign.schedule.days.includes(currentDay)) return false;
       }
@@ -57,7 +59,6 @@ export default function PlayScreen() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Handle tap to exit (2 taps)
   const handleScreenTap = () => {
     if (tapTimeoutRef.current) {
       clearTimeout(tapTimeoutRef.current);
@@ -78,155 +79,176 @@ export default function PlayScreen() {
 
   useEffect(() => {
     return () => {
-      if (tapTimeoutRef.current) {
-        clearTimeout(tapTimeoutRef.current);
-      }
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+      if (imageTimerRef.current) clearTimeout(imageTimerRef.current);
     };
   }, []);
 
   const currentCampaign = activeCampaigns[currentCampaignIndex];
   const currentItem = currentCampaign?.mediaItems[currentMediaIndex];
 
-  // Get next item for preloading
-  const getNextItem = useCallback(() => {
+  // Calculate next indices
+  const getNextIndices = useCallback(() => {
     if (!currentCampaign) return null;
-    const nextMediaIndex = currentMediaIndex + 1;
-    if (nextMediaIndex < currentCampaign.mediaItems.length) {
-      return currentCampaign.mediaItems[nextMediaIndex];
+    
+    let nextMediaIdx = currentMediaIndex + 1;
+    let nextCampaignIdx = currentCampaignIndex;
+    
+    if (nextMediaIdx >= currentCampaign.mediaItems.length) {
+      if (currentCampaign.loop && activeCampaigns.length === 1) {
+        nextMediaIdx = 0;
+      } else {
+        nextCampaignIdx = currentCampaignIndex + 1;
+        if (nextCampaignIdx >= activeCampaigns.length) {
+          nextCampaignIdx = 0;
+        }
+        nextMediaIdx = 0;
+      }
     }
-    // Check next campaign
-    const nextCampaignIndex = currentCampaignIndex + 1;
-    if (nextCampaignIndex < activeCampaigns.length) {
-      return activeCampaigns[nextCampaignIndex]?.mediaItems[0];
-    }
-    // Loop back
-    if (currentCampaign.loop || activeCampaigns.length > 0) {
-      return activeCampaigns[0]?.mediaItems[0];
-    }
-    return null;
+    
+    return { campaignIdx: nextCampaignIdx, mediaIdx: nextMediaIdx };
   }, [currentCampaign, currentMediaIndex, currentCampaignIndex, activeCampaigns]);
 
-  const nextItem = getNextItem();
-
-  // Preload next video
-  useEffect(() => {
-    if (nextItem?.type === 'video' && nextVideoRef.current) {
-      nextVideoRef.current.src = nextItem.url;
-      nextVideoRef.current.load();
-    }
-  }, [nextItem]);
+  const nextIndices = getNextIndices();
+  const nextItem = nextIndices ? activeCampaigns[nextIndices.campaignIdx]?.mediaItems[nextIndices.mediaIdx] : null;
 
   const advanceToNext = useCallback(() => {
-    if (!currentCampaign) return;
-
-    const nextMediaIndex = currentMediaIndex + 1;
-
-    if (nextMediaIndex >= currentCampaign.mediaItems.length) {
-      if (currentCampaign.loop && activeCampaigns.length === 1) {
-        setCurrentMediaIndex(0);
-      } else {
-        const nextCampaignIndex = currentCampaignIndex + 1;
-        if (nextCampaignIndex >= activeCampaigns.length) {
-          setCurrentCampaignIndex(0);
-          setCurrentMediaIndex(0);
-        } else {
-          setCurrentCampaignIndex(nextCampaignIndex);
-          setCurrentMediaIndex(0);
-        }
-      }
-    } else {
-      setCurrentMediaIndex(nextMediaIndex);
+    const next = getNextIndices();
+    if (!next) return;
+    
+    // Switch active player for videos
+    if (nextItem?.type === 'video') {
+      setActivePlayer(prev => prev === 'A' ? 'B' : 'A');
     }
-  }, [currentCampaign, currentMediaIndex, currentCampaignIndex, activeCampaigns.length]);
+    
+    setCurrentCampaignIndex(next.campaignIdx);
+    setCurrentMediaIndex(next.mediaIdx);
+  }, [getNextIndices, nextItem]);
 
+  // Preload next video in inactive player
   useEffect(() => {
-    if (!currentItem) return;
-
-    if (currentItem.type === 'image') {
-      const duration = (currentItem.duration || settings.defaultImageDuration) * 1000;
-      const timer = setTimeout(advanceToNext, duration);
-      return () => clearTimeout(timer);
+    if (!nextItem || nextItem.type !== 'video') return;
+    
+    const inactiveRef = activePlayer === 'A' ? videoRefB : videoRefA;
+    const setReady = activePlayer === 'A' ? setPlayerBReady : setPlayerAReady;
+    
+    if (inactiveRef.current) {
+      setReady(false);
+      inactiveRef.current.src = nextItem.url;
+      inactiveRef.current.load();
     }
+  }, [nextItem, activePlayer]);
+
+  // Handle image duration timer
+  useEffect(() => {
+    if (!currentItem || currentItem.type !== 'image') return;
+    
+    if (imageTimerRef.current) clearTimeout(imageTimerRef.current);
+    
+    const duration = (currentItem.duration || settings.defaultImageDuration) * 1000;
+    imageTimerRef.current = setTimeout(advanceToNext, duration);
+    
+    return () => {
+      if (imageTimerRef.current) clearTimeout(imageTimerRef.current);
+    };
   }, [currentItem, settings.defaultImageDuration, advanceToNext]);
 
-  // Force autoplay for video after transition
+  // Play video when it becomes current - wait for canplay event
   useEffect(() => {
-    if (currentItem?.type === 'video' && videoRef.current) {
-      const video = videoRef.current;
-      // Reset and force play
+    if (!currentItem || currentItem.type !== 'video') return;
+    
+    const activeRef = activePlayer === 'A' ? videoRefA : videoRefB;
+    const video = activeRef.current;
+    
+    if (!video) return;
+
+    const startPlayback = () => {
       video.currentTime = 0;
       video.muted = true;
       
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          // Try to unmute after play starts
           video.muted = false;
         }).catch(() => {
-          // Keep muted if autoplay with sound is blocked
           video.muted = true;
           video.play().catch(() => {});
         });
       }
-    }
-  }, [currentItem?.id, currentItem?.type]);
+    };
 
-  const handleVideoEnded = () => {
+    // If video source matches current item and is ready
+    if (video.src.includes(encodeURIComponent(currentItem.name)) || video.readyState >= 3) {
+      startPlayback();
+    } else {
+      // Set source and wait for canplay
+      video.src = currentItem.url;
+      
+      const handleCanPlay = () => {
+        startPlayback();
+        video.removeEventListener('canplay', handleCanPlay);
+      };
+      
+      video.addEventListener('canplay', handleCanPlay);
+      video.load();
+      
+      return () => {
+        video.removeEventListener('canplay', handleCanPlay);
+      };
+    }
+  }, [currentItem, activePlayer, currentMediaIndex, currentCampaignIndex]);
+
+  const handleVideoEnded = useCallback(() => {
     if (!currentCampaign) return;
     
-    // If single video with loop, video element handles looping via loop attribute
     if (currentCampaign.mediaItems.length === 1 && currentCampaign.loop) {
       return;
     }
     
     advanceToNext();
-  };
+  }, [currentCampaign, advanceToNext]);
+
+  const handleVideoCanPlay = useCallback((player: 'A' | 'B') => {
+    if (player === 'A') setPlayerAReady(true);
+    else setPlayerBReady(true);
+  }, []);
 
   if (!currentCampaign || !currentItem) {
     return null;
   }
 
-  const getAnimationVariants = () => {
-    // No animation for videos to avoid black screen
-    if (currentItem.type === 'video') {
-      return {
-        initial: { opacity: 1 },
-        animate: { opacity: 1 },
-        exit: { opacity: 1 },
-      };
-    }
-
-    switch (settings.animation) {
-      case 'fade':
+  // Get orientation styles
+  const getOrientationStyles = () => {
+    switch (settings.orientation) {
+      case 'portrait':
         return {
-          initial: { opacity: 0 },
-          animate: { opacity: 1 },
-          exit: { opacity: 0 },
+          transform: 'rotate(-90deg)',
+          width: '100vh',
+          height: '100vw',
         };
-      case 'slide':
+      case 'portrait-inverted':
         return {
-          initial: { x: '100%', opacity: 0 },
-          animate: { x: 0, opacity: 1 },
-          exit: { x: '-100%', opacity: 0 },
+          transform: 'rotate(90deg)',
+          width: '100vh',
+          height: '100vw',
         };
-      case 'zoom':
+      case 'landscape-inverted':
         return {
-          initial: { scale: 1.2, opacity: 0 },
-          animate: { scale: 1, opacity: 1 },
-          exit: { scale: 0.8, opacity: 0 },
+          transform: 'rotate(180deg)',
+          width: '100vw',
+          height: '100vh',
         };
       default:
         return {
-          initial: {},
-          animate: {},
-          exit: {},
+          width: '100vw',
+          height: '100vh',
         };
     }
   };
 
-  const variants = getAnimationVariants();
-  const orientationStyle = getOrientationStyle(settings.orientation);
-  const isRotated = settings.orientation === 'portrait' || settings.orientation === 'portrait-inverted';
+  const orientationStyles = getOrientationStyles();
+  const isVideoA = activePlayer === 'A';
+  const shouldLoop = currentCampaign.loop && currentCampaign.mediaItems.length === 1;
 
   return (
     <div 
@@ -234,71 +256,75 @@ export default function PlayScreen() {
       onClick={handleScreenTap}
     >
       <div 
-        className="absolute flex items-center justify-center"
-        style={{
-          ...orientationStyle,
-          ...(isRotated ? {
-            width: '100vh',
-            height: '100vw',
+        className="absolute inset-0 flex items-center justify-center overflow-hidden"
+      >
+        <div
+          className="flex items-center justify-center"
+          style={{
+            ...orientationStyles,
+            position: 'absolute',
             top: '50%',
             left: '50%',
-            marginTop: '-50vw',
-            marginLeft: '-50vh',
-          } : {
-            inset: 0,
-          }),
-        }}
-      >
-        <AnimatePresence mode="sync">
-          <motion.div
-            key={`${currentCampaign.id}-${currentItem.id}`}
-            className="absolute inset-0 flex items-center justify-center"
-            variants={variants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: currentItem.type === 'video' ? 0 : settings.animationDuration / 1000 }}
-          >
-            {currentItem.type === 'image' ? (
-              <img
-                src={currentItem.url}
-                alt={currentItem.name}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <video
-                ref={videoRef}
-                key={currentItem.url}
-                src={currentItem.url}
-                muted
-                autoPlay
-                playsInline
-                controls={false}
-                loop={currentCampaign.loop && currentCampaign.mediaItems.length === 1}
-                onEnded={handleVideoEnded}
-                onError={(e) => console.error('Video error:', e)}
-                className="h-full w-full object-contain"
-                style={{ 
-                  pointerEvents: 'none',
-                  WebkitMediaControlsPlayButton: 'none',
-                } as React.CSSProperties}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+            transform: `translate(-50%, -50%) ${orientationStyles.transform || ''}`,
+          }}
+        >
+          {/* Current image */}
+          {currentItem.type === 'image' && (
+            <img
+              src={currentItem.url}
+              alt={currentItem.name}
+              className="max-w-full max-h-full object-contain"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          )}
 
-      {/* Hidden preload video for next item */}
-      {nextItem?.type === 'video' && (
-        <video
-          ref={nextVideoRef}
-          preload="auto"
-          muted
-          playsInline
-          className="hidden"
-          style={{ display: 'none' }}
-        />
-      )}
+          {/* Video Player A */}
+          <video
+            ref={videoRefA}
+            muted
+            playsInline
+            controls={false}
+            loop={shouldLoop}
+            onEnded={handleVideoEnded}
+            onCanPlay={() => handleVideoCanPlay('A')}
+            className="max-w-full max-h-full object-contain"
+            style={{ 
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              opacity: currentItem.type === 'video' && isVideoA ? 1 : 0,
+              pointerEvents: 'none',
+              zIndex: isVideoA ? 2 : 1,
+            }}
+          />
+
+          {/* Video Player B */}
+          <video
+            ref={videoRefB}
+            muted
+            playsInline
+            controls={false}
+            loop={shouldLoop}
+            onEnded={handleVideoEnded}
+            onCanPlay={() => handleVideoCanPlay('B')}
+            className="max-w-full max-h-full object-contain"
+            style={{ 
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              opacity: currentItem.type === 'video' && !isVideoA ? 1 : 0,
+              pointerEvents: 'none',
+              zIndex: !isVideoA ? 2 : 1,
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
