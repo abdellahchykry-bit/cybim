@@ -2,21 +2,19 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { useOrientation } from '@/hooks/useOrientation';
+import { getOrientationStyle } from '@/hooks/useOrientation';
 
 export default function PreviewScreen() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { campaigns, settings } = useApp();
   
-  // Apply orientation lock during preview
-  useOrientation(settings.orientation);
-  
   const campaign = campaigns.find((c) => c.id === id);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [tapCount, setTapCount] = useState(0);
   const tapTimeoutRef = useRef<NodeJS.Timeout>();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const nextVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!campaign || campaign.mediaItems.length === 0) {
@@ -63,6 +61,29 @@ export default function PreviewScreen() {
     };
   }, []);
 
+  // Get next item for preloading
+  const getNextItem = useCallback(() => {
+    if (!campaign) return null;
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < campaign.mediaItems.length) {
+      return campaign.mediaItems[nextIndex];
+    }
+    if (campaign.loop) {
+      return campaign.mediaItems[0];
+    }
+    return null;
+  }, [campaign, currentIndex]);
+
+  const nextItem = getNextItem();
+
+  // Preload next video
+  useEffect(() => {
+    if (nextItem?.type === 'video' && nextVideoRef.current) {
+      nextVideoRef.current.src = nextItem.url;
+      nextVideoRef.current.load();
+    }
+  }, [nextItem]);
+
   useEffect(() => {
     if (!campaign) return;
     
@@ -86,6 +107,29 @@ export default function PreviewScreen() {
     }
   }, [currentIndex, campaign, settings.defaultImageDuration, navigate]);
 
+  // Force autoplay for video after transition
+  useEffect(() => {
+    const currentItem = campaign?.mediaItems[currentIndex];
+    if (currentItem?.type === 'video' && videoRef.current) {
+      const video = videoRef.current;
+      // Reset and force play
+      video.currentTime = 0;
+      video.muted = true;
+      
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          // Try to unmute after play starts
+          video.muted = false;
+        }).catch(() => {
+          // Keep muted if autoplay with sound is blocked
+          video.muted = true;
+          video.play().catch(() => {});
+        });
+      }
+    }
+  }, [currentIndex, campaign]);
+
   const handleVideoEnded = () => {
     if (!campaign) return;
     
@@ -105,23 +149,6 @@ export default function PreviewScreen() {
     });
   };
 
-  const handleVideoCanPlay = () => {
-    if (videoRef.current) {
-      videoRef.current.play().then(() => {
-        // Try to unmute after play starts
-        if (videoRef.current) {
-          videoRef.current.muted = false;
-        }
-      }).catch(() => {
-        // Autoplay blocked, keep muted and play
-        if (videoRef.current) {
-          videoRef.current.muted = true;
-          videoRef.current.play().catch(console.error);
-        }
-      });
-    }
-  };
-
   if (!campaign || campaign.mediaItems.length === 0) {
     return null;
   }
@@ -129,6 +156,15 @@ export default function PreviewScreen() {
   const currentItem = campaign.mediaItems[currentIndex];
   
   const getAnimationVariants = () => {
+    // No animation for videos to avoid black screen
+    if (currentItem.type === 'video') {
+      return {
+        initial: { opacity: 1 },
+        animate: { opacity: 1 },
+        exit: { opacity: 1 },
+      };
+    }
+
     switch (settings.animation) {
       case 'fade':
         return {
@@ -158,45 +194,80 @@ export default function PreviewScreen() {
   };
 
   const variants = getAnimationVariants();
+  const orientationStyle = getOrientationStyle(settings.orientation);
+  const isRotated = settings.orientation === 'portrait' || settings.orientation === 'portrait-inverted';
 
   return (
     <div 
-      className="fixed inset-0 bg-black cursor-none"
+      className="fixed inset-0 bg-black cursor-none overflow-hidden"
       onClick={handleScreenTap}
     >
-      <AnimatePresence mode="sync">
-        <motion.div
-          key={currentItem.id}
-          className="absolute inset-0 flex items-center justify-center"
-          variants={variants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          transition={{ duration: currentItem.type === 'video' ? 0.1 : settings.animationDuration / 1000 }}
-        >
-          {currentItem.type === 'image' ? (
-            <img
-              src={currentItem.url}
-              alt={currentItem.name}
-              className="h-full w-full object-contain"
-            />
-          ) : (
-            <video
-              ref={videoRef}
-              key={currentItem.url}
-              src={currentItem.url}
-              muted
-              autoPlay
-              playsInline
-              loop={campaign.loop && campaign.mediaItems.length === 1}
-              onCanPlay={handleVideoCanPlay}
-              onEnded={handleVideoEnded}
-              onError={(e) => console.error('Video error:', e)}
-              className="h-full w-full object-contain"
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
+      <div 
+        className="absolute flex items-center justify-center"
+        style={{
+          ...orientationStyle,
+          ...(isRotated ? {
+            width: '100vh',
+            height: '100vw',
+            top: '50%',
+            left: '50%',
+            marginTop: '-50vw',
+            marginLeft: '-50vh',
+          } : {
+            inset: 0,
+          }),
+        }}
+      >
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={currentItem.id}
+            className="absolute inset-0 flex items-center justify-center"
+            variants={variants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: currentItem.type === 'video' ? 0 : settings.animationDuration / 1000 }}
+          >
+            {currentItem.type === 'image' ? (
+              <img
+                src={currentItem.url}
+                alt={currentItem.name}
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                key={currentItem.url}
+                src={currentItem.url}
+                muted
+                autoPlay
+                playsInline
+                controls={false}
+                loop={campaign.loop && campaign.mediaItems.length === 1}
+                onEnded={handleVideoEnded}
+                onError={(e) => console.error('Video error:', e)}
+                className="h-full w-full object-contain"
+                style={{ 
+                  pointerEvents: 'none',
+                  WebkitMediaControlsPlayButton: 'none',
+                } as React.CSSProperties}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Hidden preload video for next item */}
+      {nextItem?.type === 'video' && (
+        <video
+          ref={nextVideoRef}
+          preload="auto"
+          muted
+          playsInline
+          className="hidden"
+          style={{ display: 'none' }}
+        />
+      )}
     </div>
   );
 }

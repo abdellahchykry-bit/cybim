@@ -2,20 +2,18 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { useOrientation } from '@/hooks/useOrientation';
+import { getOrientationStyle } from '@/hooks/useOrientation';
 
 export default function PlayScreen() {
   const navigate = useNavigate();
   const { campaigns, settings, currentTime } = useApp();
-  
-  // Apply orientation lock during playback
-  useOrientation(settings.orientation);
   
   const [currentCampaignIndex, setCurrentCampaignIndex] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [tapCount, setTapCount] = useState(0);
   const tapTimeoutRef = useRef<NodeJS.Timeout>();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const nextVideoRef = useRef<HTMLVideoElement>(null);
 
   // Get active campaigns based on schedule
   const activeCampaigns = useMemo(() => {
@@ -89,6 +87,35 @@ export default function PlayScreen() {
   const currentCampaign = activeCampaigns[currentCampaignIndex];
   const currentItem = currentCampaign?.mediaItems[currentMediaIndex];
 
+  // Get next item for preloading
+  const getNextItem = useCallback(() => {
+    if (!currentCampaign) return null;
+    const nextMediaIndex = currentMediaIndex + 1;
+    if (nextMediaIndex < currentCampaign.mediaItems.length) {
+      return currentCampaign.mediaItems[nextMediaIndex];
+    }
+    // Check next campaign
+    const nextCampaignIndex = currentCampaignIndex + 1;
+    if (nextCampaignIndex < activeCampaigns.length) {
+      return activeCampaigns[nextCampaignIndex]?.mediaItems[0];
+    }
+    // Loop back
+    if (currentCampaign.loop || activeCampaigns.length > 0) {
+      return activeCampaigns[0]?.mediaItems[0];
+    }
+    return null;
+  }, [currentCampaign, currentMediaIndex, currentCampaignIndex, activeCampaigns]);
+
+  const nextItem = getNextItem();
+
+  // Preload next video
+  useEffect(() => {
+    if (nextItem?.type === 'video' && nextVideoRef.current) {
+      nextVideoRef.current.src = nextItem.url;
+      nextVideoRef.current.load();
+    }
+  }, [nextItem]);
+
   const advanceToNext = useCallback(() => {
     if (!currentCampaign) return;
 
@@ -122,22 +149,27 @@ export default function PlayScreen() {
     }
   }, [currentItem, settings.defaultImageDuration, advanceToNext]);
 
-  const handleVideoCanPlay = () => {
-    if (videoRef.current) {
-      videoRef.current.play().then(() => {
-        // Try to unmute after play starts
-        if (videoRef.current) {
-          videoRef.current.muted = false;
-        }
-      }).catch(() => {
-        // Autoplay blocked, keep muted and play
-        if (videoRef.current) {
-          videoRef.current.muted = true;
-          videoRef.current.play().catch(console.error);
-        }
-      });
+  // Force autoplay for video after transition
+  useEffect(() => {
+    if (currentItem?.type === 'video' && videoRef.current) {
+      const video = videoRef.current;
+      // Reset and force play
+      video.currentTime = 0;
+      video.muted = true;
+      
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          // Try to unmute after play starts
+          video.muted = false;
+        }).catch(() => {
+          // Keep muted if autoplay with sound is blocked
+          video.muted = true;
+          video.play().catch(() => {});
+        });
+      }
     }
-  };
+  }, [currentItem?.id, currentItem?.type]);
 
   const handleVideoEnded = () => {
     if (!currentCampaign) return;
@@ -155,6 +187,15 @@ export default function PlayScreen() {
   }
 
   const getAnimationVariants = () => {
+    // No animation for videos to avoid black screen
+    if (currentItem.type === 'video') {
+      return {
+        initial: { opacity: 1 },
+        animate: { opacity: 1 },
+        exit: { opacity: 1 },
+      };
+    }
+
     switch (settings.animation) {
       case 'fade':
         return {
@@ -184,45 +225,80 @@ export default function PlayScreen() {
   };
 
   const variants = getAnimationVariants();
+  const orientationStyle = getOrientationStyle(settings.orientation);
+  const isRotated = settings.orientation === 'portrait' || settings.orientation === 'portrait-inverted';
 
   return (
     <div 
-      className="fixed inset-0 bg-black cursor-none"
+      className="fixed inset-0 bg-black cursor-none overflow-hidden"
       onClick={handleScreenTap}
     >
-      <AnimatePresence mode="sync">
-        <motion.div
-          key={`${currentCampaign.id}-${currentItem.id}`}
-          className="absolute inset-0 flex items-center justify-center"
-          variants={variants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          transition={{ duration: currentItem.type === 'video' ? 0.1 : settings.animationDuration / 1000 }}
-        >
-          {currentItem.type === 'image' ? (
-            <img
-              src={currentItem.url}
-              alt={currentItem.name}
-              className="h-full w-full object-contain"
-            />
-          ) : (
-            <video
-              ref={videoRef}
-              key={currentItem.url}
-              src={currentItem.url}
-              muted
-              autoPlay
-              playsInline
-              loop={currentCampaign.loop && currentCampaign.mediaItems.length === 1}
-              onCanPlay={handleVideoCanPlay}
-              onEnded={handleVideoEnded}
-              onError={(e) => console.error('Video error:', e)}
-              className="h-full w-full object-contain"
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
+      <div 
+        className="absolute flex items-center justify-center"
+        style={{
+          ...orientationStyle,
+          ...(isRotated ? {
+            width: '100vh',
+            height: '100vw',
+            top: '50%',
+            left: '50%',
+            marginTop: '-50vw',
+            marginLeft: '-50vh',
+          } : {
+            inset: 0,
+          }),
+        }}
+      >
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={`${currentCampaign.id}-${currentItem.id}`}
+            className="absolute inset-0 flex items-center justify-center"
+            variants={variants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: currentItem.type === 'video' ? 0 : settings.animationDuration / 1000 }}
+          >
+            {currentItem.type === 'image' ? (
+              <img
+                src={currentItem.url}
+                alt={currentItem.name}
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                key={currentItem.url}
+                src={currentItem.url}
+                muted
+                autoPlay
+                playsInline
+                controls={false}
+                loop={currentCampaign.loop && currentCampaign.mediaItems.length === 1}
+                onEnded={handleVideoEnded}
+                onError={(e) => console.error('Video error:', e)}
+                className="h-full w-full object-contain"
+                style={{ 
+                  pointerEvents: 'none',
+                  WebkitMediaControlsPlayButton: 'none',
+                } as React.CSSProperties}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Hidden preload video for next item */}
+      {nextItem?.type === 'video' && (
+        <video
+          ref={nextVideoRef}
+          preload="auto"
+          muted
+          playsInline
+          className="hidden"
+          style={{ display: 'none' }}
+        />
+      )}
     </div>
   );
 }

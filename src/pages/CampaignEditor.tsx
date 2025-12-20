@@ -193,10 +193,7 @@ export default function CampaignEditor() {
     }
 
     setUnsavedChanges(false);
-    toast({
-      title: 'Campaign saved',
-      description: `"${campaign.name}" has been saved successfully.`,
-    });
+    // Removed toast notification - just navigate back
     navigate('/home');
   };
 
@@ -237,6 +234,8 @@ export default function CampaignEditor() {
                     }}
                     placeholder="Enter campaign name..."
                     className="h-14 text-lg font-medium bg-secondary border-border tv-focus"
+                    autoFocus={false}
+                    autoComplete="off"
                   />
                 </TVCardContent>
               </TVCard>
