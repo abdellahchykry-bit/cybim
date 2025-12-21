@@ -48,36 +48,50 @@ export function useOrientation(orientation: AppSettings['orientation']) {
   }, [orientation]);
 }
 
-// CSS-based orientation that works in all environments including Lovable preview
-export function getOrientationStyle(orientation: AppSettings['orientation']): {
-  transform: string;
-  width: string;
-  height: string;
-} {
+// Get CSS styles for app-level rotation
+export function getOrientationStyles(orientation: AppSettings['orientation']): React.CSSProperties {
   switch (orientation) {
     case 'portrait':
       return {
-        transform: 'rotate(-90deg)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
         width: '100vh',
         height: '100vw',
+        transform: 'rotate(-90deg) translateX(-100%)',
+        transformOrigin: 'top left',
+        overflow: 'auto',
       };
     case 'portrait-inverted':
       return {
-        transform: 'rotate(90deg)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
         width: '100vh',
         height: '100vw',
+        transform: 'rotate(90deg) translateY(-100%)',
+        transformOrigin: 'top left',
+        overflow: 'auto',
       };
     case 'landscape-inverted':
       return {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
         transform: 'rotate(180deg)',
-        width: '100vw',
-        height: '100vh',
+        transformOrigin: 'center center',
+        overflow: 'auto',
       };
-    default:
+    default: // landscape
       return {
-        transform: '',
+        position: 'fixed',
+        top: 0,
+        left: 0,
         width: '100vw',
         height: '100vh',
+        overflow: 'auto',
       };
   }
 }

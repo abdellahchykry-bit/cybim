@@ -21,8 +21,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
-import { useOrientation } from '@/hooks/useOrientation';
 import { AppSettings } from '@/types/campaign';
 
 const IMAGE_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30, 60];
@@ -44,7 +42,7 @@ const ANIMATION_OPTIONS: { value: AppSettings['animation']; label: string }[] = 
 
 export default function SettingsScreen() {
   const navigate = useNavigate();
-  const { settings, setSettings } = useApp();
+  const { settings, setSettings, setPreviewOrientation } = useApp();
   const [pendingSettings, setPendingSettings] = useState(settings);
   const [pinDialog, setPinDialog] = useState<{ open: boolean; action: 'enable' | 'disable' | 'change' }>({
     open: false,
@@ -52,12 +50,25 @@ export default function SettingsScreen() {
   });
   const [newPin, setNewPin] = useState('');
 
-  // Apply orientation lock when pendingSettings.orientation changes
-  useOrientation(pendingSettings.orientation);
+  // Apply preview orientation when pendingSettings.orientation changes
+  useEffect(() => {
+    setPreviewOrientation(pendingSettings.orientation);
+  }, [pendingSettings.orientation, setPreviewOrientation]);
+
+  // Cleanup: revert to saved orientation when leaving without saving
+  useEffect(() => {
+    return () => {
+      // Clear preview orientation on unmount (navigating away)
+      setPreviewOrientation(null);
+    };
+  }, [setPreviewOrientation]);
 
   const handleSaveSettings = () => {
+    // Save settings (this persists orientation)
     setSettings(pendingSettings);
-    // Removed toast notification - just navigate back
+    // Clear preview since it's now saved
+    setPreviewOrientation(null);
+    // Navigate back
     navigate('/home');
   };
 
