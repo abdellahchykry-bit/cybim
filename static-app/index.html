@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>CYBIM Signage Player</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="screen active">
+        <div class="splash-content">
+            <div class="logo">
+                <svg viewBox="0 0 100 100" class="logo-icon">
+                    <defs>
+                        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#00d4ff"/>
+                            <stop offset="100%" style="stop-color:#0099cc"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="url(#logoGradient)" stroke-width="3"/>
+                    <path d="M30 50 L45 65 L70 35" fill="none" stroke="url(#logoGradient)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1 class="logo-text">CYBIM</h1>
+                <p class="logo-subtitle">Offline Signage Player</p>
+            </div>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="home-screen" class="screen">
+        <header class="nav-bar">
+            <div class="nav-logo">CYBIM</div>
+            <div class="nav-time" id="nav-time"></div>
+        </header>
+        <main class="home-content">
+            <div class="menu-grid">
+                <button class="menu-card" id="btn-play" data-focus="0">
+                    <div class="card-icon">▶</div>
+                    <div class="card-label">Play</div>
+                </button>
+                <button class="menu-card" id="btn-campaigns" data-focus="1">
+                    <div class="card-icon">📋</div>
+                    <div class="card-label">Campaigns</div>
+                </button>
+                <button class="menu-card" id="btn-settings" data-focus="2">
+                    <div class="card-icon">⚙</div>
+                    <div class="card-label">Settings</div>
+                </button>
+                <button class="menu-card" id="btn-about" data-focus="3">
+                    <div class="card-icon">ℹ</div>
+                    <div class="card-label">About</div>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Campaign List Screen -->
+    <div id="campaigns-screen" class="screen">
+        <header class="nav-bar">
+            <button class="nav-back" id="campaigns-back">←</button>
+            <div class="nav-title">Campaigns</div>
+            <button class="nav-action" id="btn-add-campaign">+ Add</button>
+        </header>
+        <main class="campaigns-content">
+            <div class="campaign-list" id="campaign-list"></div>
+            <div class="empty-state" id="empty-campaigns">
+                <p>No campaigns yet</p>
+                <p class="empty-hint">Tap "Add" to create your first campaign</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Campaign Editor Screen -->
+    <div id="editor-screen" class="screen">
+        <header class="nav-bar">
+            <button class="nav-back" id="editor-back">←</button>
+            <div class="nav-title" id="editor-title">New Campaign</div>
+            <button class="nav-action" id="btn-save-campaign">Save</button>
+        </header>
+        <main class="editor-content">
+            <div class="form-group">
+                <label class="form-label">Campaign Name</label>
+                <input type="text" class="form-input" id="campaign-name" placeholder="Enter campaign name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Media Items</label>
+                <div class="media-list" id="media-list"></div>
+                <div class="media-actions">
+                    <input type="file" id="media-input" accept="image/*,video/*" multiple hidden>
+                    <button class="btn-secondary" id="btn-add-media">+ Add Media</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Image Duration (seconds)</label>
+                <input type="number" class="form-input" id="image-duration" value="5" min="1" max="60">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Schedule</label>
+                <div class="schedule-row">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="schedule-enabled">
+                        <span>Enable Schedule</span>
+                    </label>
+                </div>
+                <div class="schedule-times" id="schedule-times" style="display:none;">
+                    <div class="time-row">
+                        <label>Start:</label>
+                        <input type="time" id="schedule-start" value="08:00">
+                    </div>
+                    <div class="time-row">
+                        <label>End:</label>
+                        <input type="time" id="schedule-end" value="22:00">
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="screen">
+        <header class="nav-bar">
+            <button class="nav-back" id="settings-back">←</button>
+            <div class="nav-title">Settings</div>
+            <button class="nav-action" id="btn-save-settings">Save</button>
+        </header>
+        <main class="settings-content">
+            <div class="settings-group">
+                <h3 class="settings-header">Display</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Screen Orientation</span>
+                    <select class="form-select" id="orientation-select">
+                        <option value="landscape">Landscape</option>
+                        <option value="landscape-inverted">Landscape Inverted</option>
+                        <option value="portrait">Portrait</option>
+                        <option value="portrait-inverted">Portrait Inverted</option>
+                    </select>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3 class="settings-header">Playback</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Default Image Duration</span>
+                    <input type="number" class="form-input small" id="default-duration" value="5" min="1" max="60">
+                    <span class="setting-unit">sec</span>
+                </div>
+                <div class="setting-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="auto-start" checked>
+                        <span>Auto-start on launch</span>
+                    </label>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- About Screen -->
+    <div id="about-screen" class="screen">
+        <header class="nav-bar">
+            <button class="nav-back" id="about-back">←</button>
+            <div class="nav-title">About</div>
+        </header>
+        <main class="about-content">
+            <div class="about-logo">
+                <svg viewBox="0 0 100 100" class="about-icon">
+                    <defs>
+                        <linearGradient id="aboutGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#00d4ff"/>
+                            <stop offset="100%" style="stop-color:#0099cc"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="url(#aboutGradient)" stroke-width="3"/>
+                    <path d="M30 50 L45 65 L70 35" fill="none" stroke="url(#aboutGradient)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>CYBIM</h2>
+                <p class="about-subtitle">Offline Signage Player</p>
+            </div>
+            <div class="about-info">
+                <p class="version">Version 1.0.0</p>
+                <p class="description">Professional digital signage solution for Android devices. Fully offline, no internet required.</p>
+                <ul class="features-list">
+                    <li>✓ 100% Offline Operation</li>
+                    <li>✓ Image & Video Support</li>
+                    <li>✓ Scheduled Playback</li>
+                    <li>✓ Multiple Campaigns</li>
+                    <li>✓ Screen Orientation Control</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <!-- Play Screen -->
+    <div id="play-screen" class="screen">
+        <div class="player-container" id="player-container">
+            <img id="player-image" class="player-media" alt="">
+            <video id="player-video-a" class="player-media" muted playsinline></video>
+            <video id="player-video-b" class="player-media" muted playsinline></video>
+        </div>
+        <div class="player-overlay" id="player-overlay">
+            <p>Double-tap to exit</p>
+        </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
