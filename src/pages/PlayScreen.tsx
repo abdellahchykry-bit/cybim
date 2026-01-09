@@ -170,32 +170,35 @@ export default function PlayScreen() {
       if (playPromise !== undefined) {
         playPromise.then(() => {
           video.muted = false;
-        }).catch(() => {
+        }).catch((err) => {
+          console.log('Play failed, retrying muted:', err);
           video.muted = true;
           video.play().catch(() => {});
         });
       }
     };
 
-    // If video source matches current item and is ready
-    if (video.src.includes(encodeURIComponent(currentItem.name)) || video.readyState >= 3) {
+    const handleCanPlay = () => {
+      startPlayback();
+    };
+
+    // Always set source and play
+    const currentSrc = video.src;
+    const targetSrc = currentItem.url;
+    
+    // Check if already loaded with correct source
+    if (currentSrc === targetSrc && video.readyState >= 3) {
       startPlayback();
     } else {
       // Set source and wait for canplay
-      video.src = currentItem.url;
-      
-      const handleCanPlay = () => {
-        startPlayback();
-        video.removeEventListener('canplay', handleCanPlay);
-      };
-      
-      video.addEventListener('canplay', handleCanPlay);
+      video.src = targetSrc;
+      video.addEventListener('canplay', handleCanPlay, { once: true });
       video.load();
-      
-      return () => {
-        video.removeEventListener('canplay', handleCanPlay);
-      };
     }
+    
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+    };
   }, [currentItem, activePlayer, currentMediaIndex, currentCampaignIndex]);
 
   const handleVideoEnded = useCallback(() => {
