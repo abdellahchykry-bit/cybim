@@ -1,0 +1,448 @@
+/* CYBIM Signage Player - Offline Android TV Styles */
+:root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-card: #1a1a25;
+    --text-primary: #ffffff;
+    --text-secondary: #888899;
+    --accent: #00d4ff;
+    --accent-glow: rgba(0, 212, 255, 0.3);
+    --success: #22c55e;
+    --danger: #ef4444;
+    --radius: 12px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Screens */
+.screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    background: var(--bg-primary);
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* Splash Screen */
+#splash-screen {
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+}
+
+.splash-content {
+    text-align: center;
+}
+
+.logo {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.tagline {
+    color: var(--text-secondary);
+    margin-top: 16px;
+    font-size: 14px;
+}
+
+.loading-bar {
+    width: 200px;
+    height: 3px;
+    background: var(--bg-card);
+    border-radius: 3px;
+    margin-top: 32px;
+    overflow: hidden;
+}
+
+.loading-progress {
+    width: 0%;
+    height: 100%;
+    background: var(--accent);
+    animation: loading 2s ease-out forwards;
+}
+
+@keyframes loading {
+    to { width: 100%; }
+}
+
+/* Navigation Bar */
+.nav-bar {
+    display: flex;
+    align-items: center;
+    padding: 16px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    gap: 16px;
+}
+
+.nav-logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--accent);
+}
+
+.nav-title {
+    flex: 1;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.nav-time {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-left: auto;
+}
+
+.nav-back, .nav-action {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+}
+
+.nav-back:hover, .nav-action:hover {
+    background: var(--accent-glow);
+}
+
+/* Home Screen */
+.home-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    max-width: 600px;
+}
+
+.menu-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.menu-card:hover, .menu-card:focus {
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+    transform: scale(1.02);
+}
+
+.card-icon {
+    font-size: 48px;
+}
+
+.card-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* Campaigns */
+.campaigns-content, .editor-content, .settings-content, .about-content {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.campaign-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.campaign-item {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    gap: 16px;
+}
+
+.campaign-info {
+    flex: 1;
+}
+
+.campaign-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.campaign-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.campaign-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-play { background: var(--success); color: white; }
+.btn-edit { background: var(--accent); color: white; }
+.btn-delete { background: var(--danger); color: white; }
+
+.empty-state {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-secondary);
+}
+
+/* Form Elements */
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.form-input, .form-select {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.btn-secondary {
+    padding: 12px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-secondary:hover {
+    background: var(--accent-glow);
+}
+
+/* Media List */
+.media-list {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.media-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    gap: 12px;
+}
+
+.media-thumb {
+    width: 60px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--bg-card);
+}
+
+.media-name {
+    flex: 1;
+    font-size: 14px;
+}
+
+.media-remove {
+    background: var(--danger);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Settings */
+.setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+}
+
+.setting-item .form-input,
+.setting-item .form-select {
+    width: 200px;
+}
+
+/* About */
+.about-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.about-logo {
+    font-size: 48px;
+    font-weight: bold;
+    color: var(--accent);
+    margin-bottom: 16px;
+}
+
+.about-version {
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+/* Player Screen */
+#play-screen {
+    background: #000;
+}
+
+.player-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+.player-media {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: none;
+}
+
+.player-media.active {
+    display: block;
+}
+
+.player-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+}
+
+/* Orientation Classes */
+body.orientation-portrait {
+    transform: rotate(90deg);
+    transform-origin: center center;
+    width: 100vh;
+    height: 100vw;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    margin-top: calc(-50vw);
+    margin-left: calc(-50vh);
+}
+
+body.orientation-portrait-inverted {
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    width: 100vh;
+    height: 100vw;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    margin-top: calc(-50vw);
+    margin-left: calc(-50vh);
+}
+
+body.orientation-landscape-inverted {
+    transform: rotate(180deg);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-card);
+    border-radius: 3px;
+}
+
+/* Focus styles for TV remote */
+button:focus, input:focus, select:focus, .menu-card:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
