@@ -18,8 +18,6 @@ export interface Campaign {
   name: string;
   mediaItems: MediaItem[];
   schedule: CampaignSchedule;
-  loop: boolean;
-  autoPlay: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +35,8 @@ export interface AppSettings {
   requirePinOnStartup: boolean;
   requirePinOnSettings: boolean;
   theme: 'dark' | 'light';
+  loop: boolean;
+  autoPlay: boolean;
 }
 
 export const defaultSettings: AppSettings = {
@@ -52,4 +52,6 @@ export const defaultSettings: AppSettings = {
   requirePinOnStartup: false,
   requirePinOnSettings: false,
   theme: 'dark',
+  loop: true,
+  autoPlay: false,
 };

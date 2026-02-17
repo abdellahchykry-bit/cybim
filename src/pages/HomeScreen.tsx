@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Play, Eye, Trash2, Copy, Film, Clock, Youtube } from 'lucide-react';
+import { Plus, Play, Trash2, Film, Clock, Youtube, Image as ImageIcon, Video } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useApp } from '@/contexts/AppContext';
 import { NavigationBar } from '@/components/layout/NavigationBar';
 import { DateTimeDisplay } from '@/components/layout/DateTimeDisplay';
 import { TVButton } from '@/components/ui/tv-button';
-import { TVCard, TVCardTitle, TVCardDescription, TVCardContent } from '@/components/ui/tv-card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Campaign } from '@/types/campaign';
 
@@ -16,6 +15,10 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function HomeScreen() {
   const navigate = useNavigate();
   const { campaigns, setCampaigns, currentTime, isDataLoaded } = useApp();
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; campaign: Campaign | null }>({
+    open: false,
+    campaign: null,
+  });
 
   // Show loading state while data loads
   if (!isDataLoaded) {
@@ -28,22 +31,15 @@ export default function HomeScreen() {
       </div>
     );
   }
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; campaign: Campaign | null }>({
-    open: false,
-    campaign: null,
-  });
 
   const isCampaignActive = (campaign: Campaign) => {
     if (campaign.mediaItems.length === 0) return false;
-    
-    // If schedule is not enabled, campaign is always active
     if (!campaign.schedule.enabled) return true;
     
     const now = currentTime;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const currentDay = now.getDay();
     
-    // Check if current day is in schedule
     if (campaign.schedule.days && campaign.schedule.days.length > 0) {
       if (!campaign.schedule.days.includes(currentDay)) return false;
     }
@@ -73,27 +69,21 @@ export default function HomeScreen() {
       ? campaign.schedule.days 
       : [0, 1, 2, 3, 4, 5, 6];
     
-    // Find next scheduled day
     let daysUntilNext = 0;
-    let nextDay = currentDay;
     
     for (let i = 0; i <= 7; i++) {
       const checkDay = (currentDay + i) % 7;
       if (scheduledDays.includes(checkDay)) {
         if (i === 0 && currentMinutes < startMinutes) {
-          // Today, but start time hasn't passed
           daysUntilNext = 0;
-          nextDay = checkDay;
           break;
         } else if (i > 0) {
           daysUntilNext = i;
-          nextDay = checkDay;
           break;
         }
       }
     }
     
-    // Calculate total minutes until start
     let totalMinutesUntilStart = daysUntilNext * 24 * 60 + (startMinutes - currentMinutes);
     if (daysUntilNext > 0) {
       totalMinutesUntilStart = daysUntilNext * 24 * 60 - currentMinutes + startMinutes;
@@ -120,20 +110,40 @@ export default function HomeScreen() {
     }
   };
 
-  const handleDuplicateCampaign = (campaign: Campaign, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const duplicatedCampaign: Campaign = {
-      ...campaign,
+  const handleCreateCampaign = () => {
+    // Auto-generate name
+    const existingNumbers = campaigns
+      .map(c => {
+        const match = c.name.match(/^Campaign (\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+      });
+    const nextNumber = Math.max(0, ...existingNumbers) + 1;
+    
+    const newCampaign: Campaign = {
       id: uuidv4(),
-      name: `${campaign.name} (copy)`,
+      name: `Campaign ${nextNumber}`,
+      mediaItems: [],
+      schedule: {
+        startTime: '09:00',
+        endTime: '18:00',
+        days: [1, 2, 3, 4, 5],
+        enabled: false,
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    setCampaigns([...campaigns, duplicatedCampaign]);
+    
+    setCampaigns(prev => [...prev, newCampaign]);
+    navigate(`/campaign/${newCampaign.id}`);
+  };
+
+  // Get first image thumbnail from campaign
+  const getCampaignThumbnail = (campaign: Campaign) => {
+    const firstImage = campaign.mediaItems.find(m => m.type === 'image');
+    return firstImage?.url || null;
   };
 
   const openYouTube = () => {
-    // Try to open YouTube app on Android TV, fallback to web
     window.open('https://www.youtube.com', '_blank');
   };
 
@@ -173,7 +183,7 @@ export default function HomeScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          <TVButton size="lg" onClick={() => navigate('/campaign/new')}>
+          <TVButton size="lg" onClick={handleCreateCampaign}>
             <Plus className="h-5 w-5" />
             Create Campaign
           </TVButton>
@@ -211,7 +221,7 @@ export default function HomeScreen() {
             <p className="mt-2 max-w-md text-muted-foreground">
               Create your first campaign to start displaying content on your digital signage.
             </p>
-            <TVButton className="mt-6" onClick={() => navigate('/campaign/new')}>
+            <TVButton className="mt-6" onClick={handleCreateCampaign}>
               <Plus className="h-5 w-5" />
               Create Your First Campaign
             </TVButton>
@@ -221,6 +231,7 @@ export default function HomeScreen() {
             {campaigns.map((campaign, index) => {
               const isActive = isCampaignActive(campaign);
               const countdown = getCountdown(campaign);
+              const thumbnail = getCampaignThumbnail(campaign);
               
               return (
                 <motion.div
@@ -229,92 +240,79 @@ export default function HomeScreen() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 * index }}
                 >
-                  <TVCard
+                  <div
                     onClick={() => navigate(`/campaign/${campaign.id}`)}
-                    className="relative"
+                    className="group relative cursor-pointer rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 tv-focus"
+                    tabIndex={0}
                   >
-                    {/* Status badges */}
-                    <div className="absolute top-4 right-4 flex gap-2">
-                      {isActive && (
-                        <span className="flex items-center gap-1.5 rounded-full bg-success px-3 py-1 text-xs font-bold text-success-foreground shadow-lg shadow-success/30">
-                          <span className="h-2 w-2 animate-pulse rounded-full bg-success-foreground" />
-                          LIVE
-                        </span>
+                    {/* Thumbnail */}
+                    <div className="relative h-40 w-full bg-secondary overflow-hidden">
+                      {thumbnail ? (
+                        <img
+                          src={thumbnail}
+                          alt={campaign.name}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          {campaign.mediaItems.length > 0 ? (
+                            <Video className="h-12 w-12 text-muted-foreground/50" />
+                          ) : (
+                            <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
+                          )}
+                        </div>
                       )}
-                      {countdown && (
-                        <span className="flex items-center gap-1 rounded-full bg-warning/20 px-3 py-1 text-xs font-medium text-warning">
-                          <Clock className="h-3 w-3" />
-                          {countdown}
-                        </span>
-                      )}
-                    </div>
-
-                    <TVCardTitle>{campaign.name}</TVCardTitle>
-                    <TVCardDescription>
-                      {campaign.mediaItems.length} item{campaign.mediaItems.length !== 1 ? 's' : ''}
-                    </TVCardDescription>
-
-                    <TVCardContent>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        {campaign.schedule.enabled && (
-                          <>
-                            <span>
-                              {campaign.schedule.startTime} - {campaign.schedule.endTime}
-                            </span>
-                            {campaign.schedule.days && campaign.schedule.days.length > 0 && campaign.schedule.days.length < 7 && (
-                              <span className="text-xs">
-                                ({campaign.schedule.days.map(d => DAY_NAMES[d]).join(', ')})
-                              </span>
-                            )}
-                          </>
-                        )}
-                        {campaign.loop && (
-                          <span className="rounded bg-secondary px-2 py-0.5 text-xs">
-                            Loop
+                      
+                      {/* Status badges */}
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        {isActive && (
+                          <span className="flex items-center gap-1.5 rounded-full bg-success px-3 py-1 text-xs font-bold text-success-foreground shadow-lg shadow-success/30">
+                            <span className="h-2 w-2 animate-pulse rounded-full bg-success-foreground" />
+                            LIVE
                           </span>
                         )}
-                        {campaign.autoPlay && (
-                          <span className="rounded bg-primary/20 px-2 py-0.5 text-xs text-primary">
-                            Auto
+                        {countdown && (
+                          <span className="flex items-center gap-1 rounded-full bg-warning/20 px-3 py-1 text-xs font-medium text-warning">
+                            <Clock className="h-3 w-3" />
+                            {countdown}
                           </span>
                         )}
                       </div>
-                    </TVCardContent>
-
-                    {/* Quick actions */}
-                    <div className="mt-4 flex gap-2 border-t border-border pt-4">
-                      <TVButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/preview/${campaign.id}`);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                        Preview
-                      </TVButton>
-                      <TVButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleDuplicateCampaign(campaign, e)}
-                      >
-                        <Copy className="h-4 w-4" />
-                        Duplicate
-                      </TVButton>
-                      <TVButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteDialog({ open: true, campaign });
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </TVButton>
                     </div>
-                  </TVCard>
+
+                    {/* Info */}
+                    <div className="p-4">
+                      <h3 className="font-display text-lg font-bold truncate">{campaign.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {campaign.mediaItems.length} item{campaign.mediaItems.length !== 1 ? 's' : ''}
+                        {campaign.schedule.enabled && (
+                          <span className="ml-2">
+                            • {campaign.schedule.startTime} - {campaign.schedule.endTime}
+                            {campaign.schedule.days && campaign.schedule.days.length > 0 && campaign.schedule.days.length < 7 && (
+                              <span className="ml-1 text-xs">
+                                ({campaign.schedule.days.map(d => DAY_NAMES[d]).join(', ')})
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </p>
+
+                      {/* Delete button */}
+                      <div className="mt-3 flex justify-end">
+                        <TVButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteDialog({ open: true, campaign });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </TVButton>
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               );
             })}
