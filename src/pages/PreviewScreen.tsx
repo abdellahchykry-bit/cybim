@@ -60,15 +60,14 @@ export default function PreviewScreen() {
     };
   }, []);
 
-  // Calculate next index
   const getNextIndex = useCallback(() => {
     if (!campaign) return 0;
     const next = currentIndex + 1;
     if (next >= campaign.mediaItems.length) {
-      return campaign.loop ? 0 : -1;
+      return settings.loop ? 0 : -1;
     }
     return next;
-  }, [campaign, currentIndex]);
+  }, [campaign, currentIndex, settings.loop]);
 
   const nextIndex = getNextIndex();
   const nextItem = campaign && nextIndex >= 0 ? campaign.mediaItems[nextIndex] : null;
@@ -83,7 +82,6 @@ export default function PreviewScreen() {
       return;
     }
     
-    // Switch active player for videos
     if (campaign.mediaItems[next]?.type === 'video') {
       setActivePlayer(prev => prev === 'A' ? 'B' : 'A');
     }
@@ -91,7 +89,6 @@ export default function PreviewScreen() {
     setCurrentIndex(next);
   }, [campaign, getNextIndex, navigate]);
 
-  // Preload next video in inactive player
   useEffect(() => {
     if (!nextItem || nextItem.type !== 'video') return;
     
@@ -103,7 +100,6 @@ export default function PreviewScreen() {
     }
   }, [nextItem, activePlayer]);
 
-  // Handle image duration timer
   useEffect(() => {
     if (!currentItem || currentItem.type !== 'image') return;
     
@@ -117,7 +113,6 @@ export default function PreviewScreen() {
     };
   }, [currentItem, settings.defaultImageDuration, advanceToNext]);
 
-  // Play video when it becomes current - wait for canplay event
   useEffect(() => {
     if (!currentItem || currentItem.type !== 'video') return;
     
@@ -146,15 +141,12 @@ export default function PreviewScreen() {
       startPlayback();
     };
 
-    // Always set source and play
     const currentSrc = video.src;
     const targetSrc = currentItem.url;
     
-    // Check if already loaded with correct source
     if (currentSrc === targetSrc && video.readyState >= 3) {
       startPlayback();
     } else {
-      // Set source and wait for canplay
       video.src = targetSrc;
       video.addEventListener('canplay', handleCanPlay, { once: true });
       video.load();
@@ -168,58 +160,40 @@ export default function PreviewScreen() {
   const handleVideoEnded = useCallback(() => {
     if (!campaign) return;
     
-    if (campaign.mediaItems.length === 1 && campaign.loop) {
+    if (campaign.mediaItems.length === 1 && settings.loop) {
       return;
     }
     
     advanceToNext();
-  }, [campaign, advanceToNext]);
+  }, [campaign, advanceToNext, settings.loop]);
 
   if (!campaign || campaign.mediaItems.length === 0 || !currentItem) {
     return null;
   }
 
-  // Get orientation styles
   const getOrientationStyles = () => {
     switch (settings.orientation) {
       case 'portrait':
-        return {
-          transform: 'rotate(-90deg)',
-          width: '100vh',
-          height: '100vw',
-        };
+        return { transform: 'rotate(-90deg)', width: '100vh', height: '100vw' };
       case 'portrait-inverted':
-        return {
-          transform: 'rotate(90deg)',
-          width: '100vh',
-          height: '100vw',
-        };
+        return { transform: 'rotate(90deg)', width: '100vh', height: '100vw' };
       case 'landscape-inverted':
-        return {
-          transform: 'rotate(180deg)',
-          width: '100vw',
-          height: '100vh',
-        };
+        return { transform: 'rotate(180deg)', width: '100vw', height: '100vh' };
       default:
-        return {
-          width: '100vw',
-          height: '100vh',
-        };
+        return { width: '100vw', height: '100vh' };
     }
   };
 
   const orientationStyles = getOrientationStyles();
   const isVideoA = activePlayer === 'A';
-  const shouldLoop = campaign.loop && campaign.mediaItems.length === 1;
+  const shouldLoop = settings.loop && campaign.mediaItems.length === 1;
 
   return (
     <div 
       className="fixed inset-0 bg-black cursor-none overflow-hidden"
       onClick={handleScreenTap}
     >
-      <div 
-        className="absolute inset-0 flex items-center justify-center overflow-hidden"
-      >
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
         <div
           className="flex items-center justify-center"
           style={{
@@ -230,7 +204,6 @@ export default function PreviewScreen() {
             transform: `translate(-50%, -50%) ${orientationStyles.transform || ''}`,
           }}
         >
-          {/* Current image */}
           {currentItem.type === 'image' && (
             <img
               src={currentItem.url}
@@ -240,44 +213,36 @@ export default function PreviewScreen() {
             />
           )}
 
-          {/* Video Player A */}
           <video
             ref={videoRefA}
             muted
             playsInline
             controls={false}
+            disablePictureInPicture
             loop={shouldLoop}
             onEnded={handleVideoEnded}
             className="max-w-full max-h-full object-contain"
             style={{ 
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              position: 'absolute',
-              top: 0,
-              left: 0,
+              width: '100%', height: '100%', objectFit: 'contain',
+              position: 'absolute', top: 0, left: 0,
               opacity: currentItem.type === 'video' && isVideoA ? 1 : 0,
               pointerEvents: 'none',
               zIndex: isVideoA ? 2 : 1,
             }}
           />
 
-          {/* Video Player B */}
           <video
             ref={videoRefB}
             muted
             playsInline
             controls={false}
+            disablePictureInPicture
             loop={shouldLoop}
             onEnded={handleVideoEnded}
             className="max-w-full max-h-full object-contain"
             style={{ 
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              position: 'absolute',
-              top: 0,
-              left: 0,
+              width: '100%', height: '100%', objectFit: 'contain',
+              position: 'absolute', top: 0, left: 0,
               opacity: currentItem.type === 'video' && !isVideoA ? 1 : 0,
               pointerEvents: 'none',
               zIndex: !isVideoA ? 2 : 1,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -9,7 +9,6 @@ import {
   Lock, 
   Sun, 
   Moon,
-  Shield,
   RotateCcw,
   RotateCw
 } from 'lucide-react';
@@ -22,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { AppSettings } from '@/types/campaign';
+import { useState } from 'react';
 
 const IMAGE_DURATION_OPTIONS = [5, 10, 15, 20, 25, 30, 60];
 const TRANSITION_DURATION_OPTIONS = [100, 300, 500, 700, 1000, 1500, 2000];
@@ -43,38 +43,32 @@ const ANIMATION_OPTIONS: { value: AppSettings['animation']; label: string }[] = 
 export default function SettingsScreen() {
   const navigate = useNavigate();
   const { settings, setSettings, setPreviewOrientation } = useApp();
-  const [pendingSettings, setPendingSettings] = useState(settings);
   const [pinDialog, setPinDialog] = useState<{ open: boolean; action: 'enable' | 'disable' | 'change' }>({
     open: false,
     action: 'enable',
   });
   const [newPin, setNewPin] = useState('');
 
-  // Apply preview orientation when pendingSettings.orientation changes
+  // Apply preview orientation when settings.orientation changes
   useEffect(() => {
-    setPreviewOrientation(pendingSettings.orientation);
-  }, [pendingSettings.orientation, setPreviewOrientation]);
+    setPreviewOrientation(settings.orientation);
+  }, [settings.orientation, setPreviewOrientation]);
 
-  // Cleanup: revert to saved orientation when leaving without saving
+  // Cleanup: revert to saved orientation when leaving
   useEffect(() => {
     return () => {
-      // Clear preview orientation on unmount (navigating away)
       setPreviewOrientation(null);
     };
   }, [setPreviewOrientation]);
 
-  const handleSaveSettings = () => {
-    // Save settings (this persists orientation)
-    setSettings(pendingSettings);
-    // Clear preview since it's now saved
-    setPreviewOrientation(null);
-    // Navigate back
-    navigate('/home');
+  // Auto-save helper
+  const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const handlePinAction = () => {
     if (pinDialog.action === 'disable') {
-      setPendingSettings((prev) => ({
+      setSettings(prev => ({
         ...prev,
         pinEnabled: false,
         pin: '',
@@ -82,7 +76,7 @@ export default function SettingsScreen() {
         requirePinOnSettings: false,
       }));
     } else if (newPin.length >= 4 && newPin.length <= 6) {
-      setPendingSettings((prev) => ({
+      setSettings(prev => ({
         ...prev,
         pinEnabled: true,
         pin: newPin,
@@ -91,8 +85,6 @@ export default function SettingsScreen() {
     setPinDialog({ open: false, action: 'enable' });
     setNewPin('');
   };
-
-  const hasChanges = JSON.stringify(settings) !== JSON.stringify(pendingSettings);
 
   return (
     <div className="min-h-screen pb-8">
@@ -119,7 +111,7 @@ export default function SettingsScreen() {
           >
             <TVCard focusable={false}>
               <TVCardTitle className="flex items-center gap-2">
-                {pendingSettings.theme === 'dark' ? (
+                {settings.theme === 'dark' ? (
                   <Moon className="h-5 w-5 text-primary" />
                 ) : (
                   <Sun className="h-5 w-5 text-primary" />
@@ -129,16 +121,16 @@ export default function SettingsScreen() {
               <TVCardContent>
                 <div className="flex gap-4">
                   <TVButton
-                    variant={pendingSettings.theme === 'dark' ? 'default' : 'secondary'}
-                    onClick={() => setPendingSettings((prev) => ({ ...prev, theme: 'dark' }))}
+                    variant={settings.theme === 'dark' ? 'default' : 'secondary'}
+                    onClick={() => updateSetting('theme', 'dark')}
                     className="flex-1"
                   >
                     <Moon className="h-4 w-4" />
                     Dark
                   </TVButton>
                   <TVButton
-                    variant={pendingSettings.theme === 'light' ? 'default' : 'secondary'}
-                    onClick={() => setPendingSettings((prev) => ({ ...prev, theme: 'light' }))}
+                    variant={settings.theme === 'light' ? 'default' : 'secondary'}
+                    onClick={() => updateSetting('theme', 'light')}
                     className="flex-1"
                   >
                     <Sun className="h-4 w-4" />
@@ -165,11 +157,9 @@ export default function SettingsScreen() {
                   {ORIENTATION_OPTIONS.map((option) => (
                     <TVButton
                       key={option.value}
-                      variant={pendingSettings.orientation === option.value ? 'default' : 'secondary'}
+                      variant={settings.orientation === option.value ? 'default' : 'secondary'}
                       className="w-full justify-start"
-                      onClick={() =>
-                        setPendingSettings((prev) => ({ ...prev, orientation: option.value }))
-                      }
+                      onClick={() => updateSetting('orientation', option.value)}
                     >
                       {option.icon === 'landscape' ? (
                         <Monitor className="h-4 w-4 mr-2" />
@@ -202,10 +192,8 @@ export default function SettingsScreen() {
                     {ANIMATION_OPTIONS.map((option) => (
                       <TVButton
                         key={option.value}
-                        variant={pendingSettings.animation === option.value ? 'default' : 'secondary'}
-                        onClick={() =>
-                          setPendingSettings((prev) => ({ ...prev, animation: option.value }))
-                        }
+                        variant={settings.animation === option.value ? 'default' : 'secondary'}
+                        onClick={() => updateSetting('animation', option.value)}
                       >
                         {option.label}
                       </TVButton>
@@ -218,11 +206,9 @@ export default function SettingsScreen() {
                     {TRANSITION_DURATION_OPTIONS.map((duration) => (
                       <TVButton
                         key={duration}
-                        variant={pendingSettings.animationDuration === duration ? 'default' : 'secondary'}
+                        variant={settings.animationDuration === duration ? 'default' : 'secondary'}
                         size="sm"
-                        onClick={() =>
-                          setPendingSettings((prev) => ({ ...prev, animationDuration: duration }))
-                        }
+                        onClick={() => updateSetting('animationDuration', duration)}
                       >
                         {duration >= 1000 ? `${duration / 1000}s` : `${duration}ms`}
                       </TVButton>
@@ -242,7 +228,7 @@ export default function SettingsScreen() {
             <TVCard focusable={false}>
               <TVCardTitle className="flex items-center gap-2">
                 <PlayCircle className="h-5 w-5 text-primary" />
-                Playback Defaults
+                Playback
               </TVCardTitle>
               <TVCardContent className="space-y-4">
                 <div>
@@ -251,11 +237,9 @@ export default function SettingsScreen() {
                     {IMAGE_DURATION_OPTIONS.map((duration) => (
                       <TVButton
                         key={duration}
-                        variant={pendingSettings.defaultImageDuration === duration ? 'default' : 'secondary'}
+                        variant={settings.defaultImageDuration === duration ? 'default' : 'secondary'}
                         size="sm"
-                        onClick={() =>
-                          setPendingSettings((prev) => ({ ...prev, defaultImageDuration: duration }))
-                        }
+                        onClick={() => updateSetting('defaultImageDuration', duration)}
                       >
                         {duration}s
                       </TVButton>
@@ -264,14 +248,32 @@ export default function SettingsScreen() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
+                    <Label>Loop</Label>
+                    <p className="text-xs text-muted-foreground">Repeat campaigns continuously</p>
+                  </div>
+                  <Switch
+                    checked={settings.loop}
+                    onCheckedChange={(checked) => updateSetting('loop', checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Auto-play</Label>
+                    <p className="text-xs text-muted-foreground">Start when app launches</p>
+                  </div>
+                  <Switch
+                    checked={settings.autoPlay}
+                    onCheckedChange={(checked) => updateSetting('autoPlay', checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
                     <Label>Auto-start Playback</Label>
                     <p className="text-xs text-muted-foreground">Play on app launch</p>
                   </div>
                   <Switch
-                    checked={pendingSettings.autoStartPlayback}
-                    onCheckedChange={(checked) =>
-                      setPendingSettings((prev) => ({ ...prev, autoStartPlayback: checked }))
-                    }
+                    checked={settings.autoStartPlayback}
+                    onCheckedChange={(checked) => updateSetting('autoStartPlayback', checked)}
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -280,10 +282,8 @@ export default function SettingsScreen() {
                     <p className="text-xs text-muted-foreground">Keep screen on</p>
                   </div>
                   <Switch
-                    checked={pendingSettings.screenWakeLock}
-                    onCheckedChange={(checked) =>
-                      setPendingSettings((prev) => ({ ...prev, screenWakeLock: checked }))
-                    }
+                    checked={settings.screenWakeLock}
+                    onCheckedChange={(checked) => updateSetting('screenWakeLock', checked)}
                   />
                 </div>
               </TVCardContent>
@@ -305,7 +305,7 @@ export default function SettingsScreen() {
                 <div className="flex items-center justify-between">
                   <Label>PIN Protection</Label>
                   <Switch
-                    checked={pendingSettings.pinEnabled}
+                    checked={settings.pinEnabled}
                     onCheckedChange={(checked) => {
                       if (checked) {
                         setPinDialog({ open: true, action: 'enable' });
@@ -315,24 +315,20 @@ export default function SettingsScreen() {
                     }}
                   />
                 </div>
-                {pendingSettings.pinEnabled && (
+                {settings.pinEnabled && (
                   <>
                     <div className="flex items-center justify-between">
                       <Label>Require on Startup</Label>
                       <Switch
-                        checked={pendingSettings.requirePinOnStartup}
-                        onCheckedChange={(checked) =>
-                          setPendingSettings((prev) => ({ ...prev, requirePinOnStartup: checked }))
-                        }
+                        checked={settings.requirePinOnStartup}
+                        onCheckedChange={(checked) => updateSetting('requirePinOnStartup', checked)}
                       />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label>Require for Settings</Label>
                       <Switch
-                        checked={pendingSettings.requirePinOnSettings}
-                        onCheckedChange={(checked) =>
-                          setPendingSettings((prev) => ({ ...prev, requirePinOnSettings: checked }))
-                        }
+                        checked={settings.requirePinOnSettings}
+                        onCheckedChange={(checked) => updateSetting('requirePinOnSettings', checked)}
                       />
                     </div>
                     <TVButton
@@ -367,29 +363,6 @@ export default function SettingsScreen() {
             </TVCard>
           </motion.div>
         </div>
-
-        {/* Save Button */}
-        <motion.div
-          className="mt-8 flex justify-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-        >
-          <TVButton
-            size="xl"
-            onClick={handleSaveSettings}
-            disabled={!hasChanges}
-            className="min-w-64"
-          >
-            <Shield className="h-5 w-5" />
-            Save Changes
-          </TVButton>
-        </motion.div>
-        {hasChanges && (
-          <p className="mt-3 text-center text-sm text-warning">
-            You have unsaved changes
-          </p>
-        )}
       </main>
 
       {/* PIN Dialog */}

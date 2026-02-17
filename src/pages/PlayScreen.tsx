@@ -87,7 +87,7 @@ export default function PlayScreen() {
   const currentCampaign = activeCampaigns[currentCampaignIndex];
   const currentItem = currentCampaign?.mediaItems[currentMediaIndex];
 
-  // Calculate next indices
+  // Calculate next indices - use global loop setting
   const getNextIndices = useCallback(() => {
     if (!currentCampaign) return null;
     
@@ -95,35 +95,41 @@ export default function PlayScreen() {
     let nextCampaignIdx = currentCampaignIndex;
     
     if (nextMediaIdx >= currentCampaign.mediaItems.length) {
-      if (currentCampaign.loop && activeCampaigns.length === 1) {
+      if (settings.loop && activeCampaigns.length === 1) {
         nextMediaIdx = 0;
       } else {
         nextCampaignIdx = currentCampaignIndex + 1;
         if (nextCampaignIdx >= activeCampaigns.length) {
-          nextCampaignIdx = 0;
+          if (settings.loop) {
+            nextCampaignIdx = 0;
+          } else {
+            return null;
+          }
         }
         nextMediaIdx = 0;
       }
     }
     
     return { campaignIdx: nextCampaignIdx, mediaIdx: nextMediaIdx };
-  }, [currentCampaign, currentMediaIndex, currentCampaignIndex, activeCampaigns]);
+  }, [currentCampaign, currentMediaIndex, currentCampaignIndex, activeCampaigns, settings.loop]);
 
   const nextIndices = getNextIndices();
   const nextItem = nextIndices ? activeCampaigns[nextIndices.campaignIdx]?.mediaItems[nextIndices.mediaIdx] : null;
 
   const advanceToNext = useCallback(() => {
     const next = getNextIndices();
-    if (!next) return;
+    if (!next) {
+      navigate('/home');
+      return;
+    }
     
-    // Switch active player for videos
     if (nextItem?.type === 'video') {
       setActivePlayer(prev => prev === 'A' ? 'B' : 'A');
     }
     
     setCurrentCampaignIndex(next.campaignIdx);
     setCurrentMediaIndex(next.mediaIdx);
-  }, [getNextIndices, nextItem]);
+  }, [getNextIndices, nextItem, navigate]);
 
   // Preload next video in inactive player
   useEffect(() => {
@@ -153,7 +159,7 @@ export default function PlayScreen() {
     };
   }, [currentItem, settings.defaultImageDuration, advanceToNext]);
 
-  // Play video when it becomes current - wait for canplay event
+  // Play video when it becomes current
   useEffect(() => {
     if (!currentItem || currentItem.type !== 'video') return;
     
@@ -182,15 +188,12 @@ export default function PlayScreen() {
       startPlayback();
     };
 
-    // Always set source and play
     const currentSrc = video.src;
     const targetSrc = currentItem.url;
     
-    // Check if already loaded with correct source
     if (currentSrc === targetSrc && video.readyState >= 3) {
       startPlayback();
     } else {
-      // Set source and wait for canplay
       video.src = targetSrc;
       video.addEventListener('canplay', handleCanPlay, { once: true });
       video.load();
@@ -204,12 +207,12 @@ export default function PlayScreen() {
   const handleVideoEnded = useCallback(() => {
     if (!currentCampaign) return;
     
-    if (currentCampaign.mediaItems.length === 1 && currentCampaign.loop) {
+    if (currentCampaign.mediaItems.length === 1 && settings.loop) {
       return;
     }
     
     advanceToNext();
-  }, [currentCampaign, advanceToNext]);
+  }, [currentCampaign, advanceToNext, settings.loop]);
 
   const handleVideoCanPlay = useCallback((player: 'A' | 'B') => {
     if (player === 'A') setPlayerAReady(true);
@@ -224,43 +227,26 @@ export default function PlayScreen() {
   const getOrientationStyles = () => {
     switch (settings.orientation) {
       case 'portrait':
-        return {
-          transform: 'rotate(-90deg)',
-          width: '100vh',
-          height: '100vw',
-        };
+        return { transform: 'rotate(-90deg)', width: '100vh', height: '100vw' };
       case 'portrait-inverted':
-        return {
-          transform: 'rotate(90deg)',
-          width: '100vh',
-          height: '100vw',
-        };
+        return { transform: 'rotate(90deg)', width: '100vh', height: '100vw' };
       case 'landscape-inverted':
-        return {
-          transform: 'rotate(180deg)',
-          width: '100vw',
-          height: '100vh',
-        };
+        return { transform: 'rotate(180deg)', width: '100vw', height: '100vh' };
       default:
-        return {
-          width: '100vw',
-          height: '100vh',
-        };
+        return { width: '100vw', height: '100vh' };
     }
   };
 
   const orientationStyles = getOrientationStyles();
   const isVideoA = activePlayer === 'A';
-  const shouldLoop = currentCampaign.loop && currentCampaign.mediaItems.length === 1;
+  const shouldLoop = settings.loop && currentCampaign.mediaItems.length === 1;
 
   return (
     <div 
       className="fixed inset-0 bg-black cursor-none overflow-hidden"
       onClick={handleScreenTap}
     >
-      <div 
-        className="absolute inset-0 flex items-center justify-center overflow-hidden"
-      >
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
         <div
           className="flex items-center justify-center"
           style={{
@@ -271,7 +257,6 @@ export default function PlayScreen() {
             transform: `translate(-50%, -50%) ${orientationStyles.transform || ''}`,
           }}
         >
-          {/* Current image */}
           {currentItem.type === 'image' && (
             <img
               src={currentItem.url}
@@ -287,17 +272,14 @@ export default function PlayScreen() {
             muted
             playsInline
             controls={false}
+            disablePictureInPicture
             loop={shouldLoop}
             onEnded={handleVideoEnded}
             onCanPlay={() => handleVideoCanPlay('A')}
             className="max-w-full max-h-full object-contain"
             style={{ 
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              position: 'absolute',
-              top: 0,
-              left: 0,
+              width: '100%', height: '100%', objectFit: 'contain',
+              position: 'absolute', top: 0, left: 0,
               opacity: currentItem.type === 'video' && isVideoA ? 1 : 0,
               pointerEvents: 'none',
               zIndex: isVideoA ? 2 : 1,
@@ -310,17 +292,14 @@ export default function PlayScreen() {
             muted
             playsInline
             controls={false}
+            disablePictureInPicture
             loop={shouldLoop}
             onEnded={handleVideoEnded}
             onCanPlay={() => handleVideoCanPlay('B')}
             className="max-w-full max-h-full object-contain"
             style={{ 
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              position: 'absolute',
-              top: 0,
-              left: 0,
+              width: '100%', height: '100%', objectFit: 'contain',
+              position: 'absolute', top: 0, left: 0,
               opacity: currentItem.type === 'video' && !isVideoA ? 1 : 0,
               pointerEvents: 'none',
               zIndex: !isVideoA ? 2 : 1,

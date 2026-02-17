@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,21 +10,17 @@ import {
   Copy, 
   Image as ImageIcon, 
   Video, 
-  Save,
   Clock,
-  RotateCw
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { NavigationBar } from '@/components/layout/NavigationBar';
 import { TVButton } from '@/components/ui/tv-button';
 import { TVCard, TVCardTitle, TVCardContent } from '@/components/ui/tv-card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { TimeInput } from '@/components/ui/time-input';
 import { Campaign, MediaItem } from '@/types/campaign';
-import { toast } from '@/hooks/use-toast';
 
 const DAYS = [
   { value: 0, label: 'Sun' },
@@ -47,24 +43,22 @@ export default function CampaignEditor() {
 
   const [campaign, setCampaign] = useState<Campaign>(() => {
     if (existingCampaign) return { ...existingCampaign };
+    // This path shouldn't normally be hit since we create campaigns in HomeScreen now
     return {
       id: uuidv4(),
-      name: '',
+      name: 'Campaign',
       mediaItems: [],
       schedule: {
         startTime: '09:00',
         endTime: '18:00',
-        days: [1, 2, 3, 4, 5], // Mon-Fri by default
+        days: [1, 2, 3, 4, 5],
         enabled: false,
       },
-      loop: true,
-      autoPlay: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
   });
 
-  const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [deleteItemDialog, setDeleteItemDialog] = useState<{ open: boolean; itemId: string | null }>({
     open: false,
     itemId: null,
@@ -75,6 +69,31 @@ export default function CampaignEditor() {
       navigate('/home');
     }
   }, [isNew, existingCampaign, navigate]);
+
+  // Auto-save function
+  const autoSave = useCallback((updatedCampaign: Campaign) => {
+    const toSave = { ...updatedCampaign, updatedAt: new Date() };
+    if (isNew) {
+      setCampaigns((prev) => [...prev, toSave]);
+    } else {
+      setCampaigns((prev) => prev.map((c) => (c.id === toSave.id ? toSave : c)));
+    }
+  }, [isNew, setCampaigns]);
+
+  // Auto-save whenever campaign changes (debounced via the IndexedDB hook)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // For new campaigns created from HomeScreen, they're already saved
+      if (isNew) {
+        // Save immediately for the 'new' route fallback
+        autoSave(campaign);
+      }
+      return;
+    }
+    autoSave(campaign);
+  }, [campaign, autoSave]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -113,7 +132,6 @@ export default function CampaignEditor() {
         mediaItems: [...prev.mediaItems, ...newItems],
         updatedAt: new Date(),
       }));
-      setUnsavedChanges(true);
     }
 
     if (fileInputRef.current) {
@@ -130,7 +148,6 @@ export default function CampaignEditor() {
     [newItems[index], newItems[newIndex]] = [newItems[newIndex], newItems[index]];
     
     setCampaign((prev) => ({ ...prev, mediaItems: newItems, updatedAt: new Date() }));
-    setUnsavedChanges(true);
   };
 
   const duplicateItem = (item: MediaItem) => {
@@ -145,7 +162,6 @@ export default function CampaignEditor() {
       mediaItems: [...prev.mediaItems, duplicate],
       updatedAt: new Date(),
     }));
-    setUnsavedChanges(true);
   };
 
   const deleteItem = () => {
@@ -157,7 +173,6 @@ export default function CampaignEditor() {
       updatedAt: new Date(),
     }));
     setDeleteItemDialog({ open: false, itemId: null });
-    setUnsavedChanges(true);
   };
 
   const toggleDay = (day: number) => {
@@ -171,30 +186,6 @@ export default function CampaignEditor() {
         schedule: { ...prev.schedule, days: newDays },
       };
     });
-    setUnsavedChanges(true);
-  };
-
-  const handleSave = () => {
-    if (!campaign.name.trim()) {
-      toast({
-        title: 'Campaign name required',
-        description: 'Please enter a name for your campaign.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const updatedCampaign = { ...campaign, updatedAt: new Date() };
-    
-    if (isNew) {
-      setCampaigns((prev) => [...prev, updatedCampaign]);
-    } else {
-      setCampaigns((prev) => prev.map((c) => (c.id === campaign.id ? updatedCampaign : c)));
-    }
-
-    setUnsavedChanges(false);
-    // Removed toast notification - just navigate back
-    navigate('/home');
   };
 
   return (
@@ -210,42 +201,18 @@ export default function CampaignEditor() {
           transition={{ duration: 0.4 }}
         >
           <h1 className="font-display text-4xl font-bold tracking-wide">
-            {isNew ? 'Create Campaign' : 'Edit Campaign'}
+            {campaign.name}
           </h1>
         </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Campaign Name */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-            >
-              <TVCard focusable={false}>
-                <TVCardTitle>Campaign Name</TVCardTitle>
-                <TVCardContent>
-                  <Input
-                    value={campaign.name}
-                    onChange={(e) => {
-                      setCampaign((prev) => ({ ...prev, name: e.target.value }));
-                      setUnsavedChanges(true);
-                    }}
-                    placeholder="Enter campaign name..."
-                    className="h-14 text-lg font-medium bg-secondary border-border tv-focus"
-                    autoFocus={false}
-                    autoComplete="off"
-                  />
-                </TVCardContent>
-              </TVCard>
-            </motion.div>
-
             {/* Media Upload */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
             >
               <TVCard focusable={false}>
                 <TVCardTitle>Media Selection</TVCardTitle>
@@ -278,7 +245,7 @@ export default function CampaignEditor() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
             >
               <TVCard focusable={false}>
                 <TVCardTitle>Campaign Content ({campaign.mediaItems.length} items)</TVCardTitle>
@@ -384,7 +351,6 @@ export default function CampaignEditor() {
                           ...prev,
                           schedule: { ...prev.schedule, enabled: checked },
                         }));
-                        setUnsavedChanges(true);
                       }}
                     />
                   </div>
@@ -417,7 +383,6 @@ export default function CampaignEditor() {
                               ...prev,
                               schedule: { ...prev.schedule, startTime: value },
                             }));
-                            setUnsavedChanges(true);
                           }}
                         />
                       </div>
@@ -430,7 +395,6 @@ export default function CampaignEditor() {
                               ...prev,
                               schedule: { ...prev.schedule, endTime: value },
                             }));
-                            setUnsavedChanges(true);
                           }}
                           error={
                             campaign.schedule.endTime < campaign.schedule.startTime
@@ -443,66 +407,6 @@ export default function CampaignEditor() {
                   )}
                 </TVCardContent>
               </TVCard>
-            </motion.div>
-
-            {/* Playback Options */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-            >
-              <TVCard focusable={false}>
-                <TVCardTitle className="flex items-center gap-2">
-                  <RotateCw className="h-5 w-5 text-primary" />
-                  Playback
-                </TVCardTitle>
-                <TVCardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label>Loop</Label>
-                    <Switch
-                      checked={campaign.loop}
-                      onCheckedChange={(checked) => {
-                        setCampaign((prev) => ({ ...prev, loop: checked }));
-                        setUnsavedChanges(true);
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Auto-play</Label>
-                      <p className="text-xs text-muted-foreground">Start when app launches</p>
-                    </div>
-                    <Switch
-                      checked={campaign.autoPlay}
-                      onCheckedChange={(checked) => {
-                        setCampaign((prev) => ({ ...prev, autoPlay: checked }));
-                        setUnsavedChanges(true);
-                      }}
-                    />
-                  </div>
-                </TVCardContent>
-              </TVCard>
-            </motion.div>
-
-            {/* Save Button */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.4 }}
-            >
-              <TVButton
-                size="xl"
-                className="w-full"
-                onClick={handleSave}
-              >
-                <Save className="h-5 w-5" />
-                {isNew ? 'Create Campaign' : 'Save Changes'}
-              </TVButton>
-              {unsavedChanges && (
-                <p className="mt-2 text-center text-sm text-warning">
-                  You have unsaved changes
-                </p>
-              )}
             </motion.div>
           </div>
         </div>
