@@ -179,4 +179,9 @@
       filter: drop-shadow(0 0 40px hsl(187 100% 42% / 0.7));
     }
   }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
 }

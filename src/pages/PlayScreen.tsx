@@ -152,19 +152,28 @@ export default function PlayScreen() {
     }
   }, [nextItem, activePlayer]);
 
-  // Handle image duration timer — uses ref so timer never resets due to callback identity change
+  // Handle image duration timer
   useEffect(() => {
     if (!currentItem || currentItem.type !== 'image') return;
-    
+
     if (imageTimerRef.current) clearTimeout(imageTimerRef.current);
-    
-    const duration = (currentItem.duration || settings.defaultImageDuration) * 1000;
-    imageTimerRef.current = setTimeout(() => advanceToNextRef.current(), duration);
-    
+
+    const duration = (currentItem.duration ?? settings.defaultImageDuration) * 1000;
+    console.log(`[PlayScreen] Starting image timer: ${duration}ms for "${currentItem.name}"`);
+
+    imageTimerRef.current = setTimeout(() => {
+      console.log(`[PlayScreen] Image timer fired, advancing to next`);
+      advanceToNextRef.current();
+    }, duration);
+
     return () => {
-      if (imageTimerRef.current) clearTimeout(imageTimerRef.current);
+      if (imageTimerRef.current) {
+        clearTimeout(imageTimerRef.current);
+        imageTimerRef.current = undefined;
+      }
     };
-  }, [currentItem, settings.defaultImageDuration]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentItem?.id, settings.defaultImageDuration]);
 
   // Play video when it becomes current
   useEffect(() => {
@@ -266,10 +275,17 @@ export default function PlayScreen() {
         >
           {currentItem.type === 'image' && (
             <img
+              key={currentItem.id}
               src={currentItem.url}
               alt={currentItem.name}
               className="max-w-full max-h-full object-contain"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              style={{ 
+                width: '100%', height: '100%', objectFit: 'contain',
+                position: 'absolute', top: 0, left: 0, zIndex: 3,
+                animation: settings.animation !== 'none'
+                  ? `fadeIn ${settings.animationDuration}ms ease-in-out`
+                  : 'none',
+              }}
             />
           )}
 
@@ -288,6 +304,7 @@ export default function PlayScreen() {
               width: '100%', height: '100%', objectFit: 'contain',
               position: 'absolute', top: 0, left: 0,
               opacity: currentItem.type === 'video' && isVideoA ? 1 : 0,
+              transition: settings.animation !== 'none' ? `opacity ${settings.animationDuration}ms ease-in-out` : 'none',
               pointerEvents: 'none',
               zIndex: isVideoA ? 2 : 1,
             }}
@@ -308,6 +325,7 @@ export default function PlayScreen() {
               width: '100%', height: '100%', objectFit: 'contain',
               position: 'absolute', top: 0, left: 0,
               opacity: currentItem.type === 'video' && !isVideoA ? 1 : 0,
+              transition: settings.animation !== 'none' ? `opacity ${settings.animationDuration}ms ease-in-out` : 'none',
               pointerEvents: 'none',
               zIndex: !isVideoA ? 2 : 1,
             }}
