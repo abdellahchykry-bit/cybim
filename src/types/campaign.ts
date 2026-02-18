@@ -36,7 +36,6 @@ export interface AppSettings {
   requirePinOnSettings: boolean;
   theme: 'dark' | 'light';
   loop: boolean;
-  autoPlay: boolean;
 }
 
 export const defaultSettings: AppSettings = {
@@ -53,5 +52,4 @@ export const defaultSettings: AppSettings = {
   requirePinOnSettings: false,
   theme: 'dark',
   loop: true,
-  autoPlay: false,
 };
