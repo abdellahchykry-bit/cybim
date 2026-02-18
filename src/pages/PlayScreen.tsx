@@ -17,6 +17,8 @@ export default function PlayScreen() {
   const videoRefA = useRef<HTMLVideoElement>(null);
   const videoRefB = useRef<HTMLVideoElement>(null);
   const imageTimerRef = useRef<NodeJS.Timeout>();
+  // Stable ref to avoid resetting image timer on every re-render
+  const advanceToNextRef = useRef<() => void>(() => {});
 
   // Get active campaigns based on schedule
   const activeCampaigns = useMemo(() => {
@@ -131,6 +133,11 @@ export default function PlayScreen() {
     setCurrentMediaIndex(next.mediaIdx);
   }, [getNextIndices, nextItem, navigate]);
 
+  // Keep ref always pointing to latest advanceToNext
+  useEffect(() => {
+    advanceToNextRef.current = advanceToNext;
+  }, [advanceToNext]);
+
   // Preload next video in inactive player
   useEffect(() => {
     if (!nextItem || nextItem.type !== 'video') return;
@@ -145,19 +152,19 @@ export default function PlayScreen() {
     }
   }, [nextItem, activePlayer]);
 
-  // Handle image duration timer
+  // Handle image duration timer — uses ref so timer never resets due to callback identity change
   useEffect(() => {
     if (!currentItem || currentItem.type !== 'image') return;
     
     if (imageTimerRef.current) clearTimeout(imageTimerRef.current);
     
     const duration = (currentItem.duration || settings.defaultImageDuration) * 1000;
-    imageTimerRef.current = setTimeout(advanceToNext, duration);
+    imageTimerRef.current = setTimeout(() => advanceToNextRef.current(), duration);
     
     return () => {
       if (imageTimerRef.current) clearTimeout(imageTimerRef.current);
     };
-  }, [currentItem, settings.defaultImageDuration, advanceToNext]);
+  }, [currentItem, settings.defaultImageDuration]);
 
   // Play video when it becomes current
   useEffect(() => {

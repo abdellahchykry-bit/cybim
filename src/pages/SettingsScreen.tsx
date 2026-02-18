@@ -258,18 +258,8 @@ export default function SettingsScreen() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Auto-play</Label>
-                    <p className="text-xs text-muted-foreground">Start when app launches</p>
-                  </div>
-                  <Switch
-                    checked={settings.autoPlay}
-                    onCheckedChange={(checked) => updateSetting('autoPlay', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
                     <Label>Auto-start Playback</Label>
-                    <p className="text-xs text-muted-foreground">Play on app launch</p>
+                    <p className="text-xs text-muted-foreground">Automatically play campaigns on app launch</p>
                   </div>
                   <Switch
                     checked={settings.autoStartPlayback}

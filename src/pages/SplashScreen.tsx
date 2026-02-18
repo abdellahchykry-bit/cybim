@@ -6,7 +6,7 @@ import { useApp } from '@/contexts/AppContext';
 
 export default function SplashScreen() {
   const navigate = useNavigate();
-  const { isDataLoaded } = useApp();
+  const { isDataLoaded, settings, campaigns } = useApp();
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   // Minimum display time for splash
@@ -20,9 +20,14 @@ export default function SplashScreen() {
   // Navigate only when both data is loaded AND minimum time has passed
   useEffect(() => {
     if (isDataLoaded && minTimeElapsed) {
-      navigate('/home', { replace: true });
+      // Auto-start: go directly to play if enabled and there are campaigns
+      if (settings.autoStartPlayback && campaigns.length > 0) {
+        navigate('/play', { replace: true });
+      } else {
+        navigate('/home', { replace: true });
+      }
     }
-  }, [isDataLoaded, minTimeElapsed, navigate]);
+  }, [isDataLoaded, minTimeElapsed, navigate, settings.autoStartPlayback, campaigns.length]);
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-background overflow-hidden">
